@@ -1,0 +1,46 @@
+title: Suspicious SSH Login Attempts
+id: 11111111-2222-3333-4444-555555555555
+status: experimental
+description: Detects SSH login failures indicative of a brute force or suspicious access.
+level: high
+tags:
+  - attack.credential_access
+  - attack.t1110
+detection:
+  selection:
+    event.category: authentication
+    event.outcome: failure
+    event.type: info
+  condition: selection
+---
+title: Critical Process Execution
+id: 66666666-7777-8888-9999-000000000000
+status: stable
+description: Detects execution of cmd.exe or powershell.exe which might indicate a malicious shell execution.
+level: critical
+tags:
+  - attack.execution
+  - attack.t1059
+detection:
+  selection:
+    event.category: process
+    process.name:
+      - cmd.exe
+      - powershell.exe
+  condition: selection
+---
+title: Large Network Transfer
+id: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+status: test
+description: Detects large outbound network transfers which might indicate data exfiltration.
+level: medium
+tags:
+  - attack.exfiltration
+  - attack.t1048
+detection:
+  selection:
+    event.category: network
+    network.direction: outbound
+  filter_bytes:
+    network.bytes: > 1000000
+  condition: selection and filter_bytes
