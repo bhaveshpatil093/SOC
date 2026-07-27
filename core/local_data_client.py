@@ -526,6 +526,11 @@ class LocalDataClient:
             self._data_path = _find_data_file()
         return self._data_path
 
+    @data_path.setter
+    def data_path(self, path: Path):
+        """Set an explicit data path (e.g. user-uploaded file)."""
+        self._data_path = path
+
     def _check_stale(self) -> bool:
         """Return True if the data file has changed since last load."""
         try:
@@ -578,9 +583,10 @@ def _get_file_fingerprint() -> str:
 
 
 @st.cache_resource(show_spinner="Loading and analysing logs…")
-def get_local_data_client() -> LocalDataClient:
-    """Streamlit-cached singleton."""
-    _force_cache_invalidation_v2 = True
-    client = LocalDataClient.get_instance()
-    client.get_analytics()   # pre-warm (will auto-reload if stale)
+def get_local_data_client(_path_key: str = "") -> LocalDataClient:
+    """Streamlit-cached singleton, keyed on the chosen file path."""
+    client = LocalDataClient()
+    if _path_key:
+        client.data_path = Path(_path_key)
+    client.get_analytics()   # pre-warm
     return client

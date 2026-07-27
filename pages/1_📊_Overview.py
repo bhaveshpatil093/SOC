@@ -24,35 +24,76 @@ st.set_page_config(
     layout="wide",
 )
 
-# ─── Realtime Data Uploader ────────────────────────────────────────────────────
+# ─── Data Source Selection & Upload ────────────────────────────────────────────
+from pathlib import Path
+
+DATA_DIR = Path("data")
+UPLOAD_DIR = DATA_DIR / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Find primary platform file (data.xlsx / data.csv / data.parquet)
+_primary_file = None
+for ext in ("xlsx", "csv", "parquet"):
+    candidate = DATA_DIR / f"data.{ext}"
+    if candidate.exists():
+        _primary_file = candidate
+        break
+# Fallback: first file in data/ that isn't in uploads/
+if _primary_file is None:
+    for ext in ("xlsx", "csv", "parquet"):
+        for f in sorted(DATA_DIR.glob(f"*.{ext}")):
+            _primary_file = f
+            break
+        if _primary_file:
+            break
+
 with st.sidebar:
-    st.subheader("Ingest Data", anchor=False)
-    st.caption("Upload a new dataset to instantly update the dashboard.")
-    uploaded_file = st.file_uploader("Upload telemetry (CSV/XLSX/Parquet)", type=["csv", "xlsx", "parquet"])
+    st.subheader("Data Source", anchor=False)
+
+    # ── Upload Section ──
+    uploaded_file = st.file_uploader(
+        "Upload telemetry (CSV / XLSX / Parquet)",
+        type=["csv", "xlsx", "parquet"],
+        key="data_uploader",
+    )
     if uploaded_file is not None:
-        if st.session_state.get("last_uploaded") != uploaded_file.file_id:
-            from pathlib import Path
-            data_dir = Path("data")
-            data_dir.mkdir(exist_ok=True)
-            # Clear old data files so the new one is picked up
-            for f in data_dir.glob("*"):
-                if f.is_file() and not f.name.startswith("."):
-                    try:
-                        f.unlink()
-                    except Exception:
-                        pass
-            # Save new file
-            new_path = data_dir / uploaded_file.name
-            with open(new_path, "wb") as f:
+        if st.session_state.get("last_uploaded_id") != uploaded_file.file_id:
+            save_path = UPLOAD_DIR / uploaded_file.name
+            with open(save_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-            
-            st.session_state["last_uploaded"] = uploaded_file.file_id
-            
-            # ── Force completely fresh reload ──
-            from core.local_data_client import LocalDataClient
-            LocalDataClient._instance = None
+            st.session_state["last_uploaded_id"] = uploaded_file.file_id
+            st.session_state["uploaded_file_name"] = uploaded_file.name
             st.cache_resource.clear()
             st.rerun()
+
+    # ── Source Toggle ──
+    uploaded_name = st.session_state.get("uploaded_file_name")
+    uploaded_files = sorted(UPLOAD_DIR.glob("*"))
+    uploaded_files = [f for f in uploaded_files if f.is_file() and f.suffix in (".xlsx", ".csv", ".parquet")]
+
+    source_options = {}
+    if _primary_file:
+        source_options[f"📦 Platform Data ({_primary_file.name})"] = str(_primary_file)
+    for uf in uploaded_files:
+        source_options[f"📤 Uploaded: {uf.name}"] = str(uf)
+
+    if len(source_options) > 1:
+        selected_label = st.radio(
+            "Select data source",
+            list(source_options.keys()),
+            index=len(source_options) - 1 if uploaded_name else 0,
+            key="data_source_radio",
+        )
+        selected_path = source_options[selected_label]
+    elif source_options:
+        selected_label = list(source_options.keys())[0]
+        selected_path = list(source_options.values())[0]
+        st.caption(f"Active: {selected_label}")
+    else:
+        st.error("No data files found. Upload a file to begin.")
+        st.stop()
+
+    st.divider()
 
 # ─── Dark Plotly base matching config.toml ──────────────────────────────────────
 def _dark(height: int = 300, **kw) -> dict:
@@ -78,7 +119,7 @@ def hex_to_rgba(h: str, alpha: float) -> str:
 
 # ─── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading and analysing local dataset..."):
-    client = get_local_data_client()
+    client = get_local_data_client(_path_key=selected_path)
     A = client.get_analytics()
 
 if "error" in A:
@@ -90,9 +131,9 @@ cols      = A.get("columns", {})
 
 # ─── Header ────────────────────────────────────────────────────────────────────
 st.title("SOC Analytics Dashboard")
-data_name = client.data_path.name if getattr(client, "data_path", None) else "Data file"
+data_name = Path(selected_path).name
 st.caption(
-    f"Local dataset • **{data_name}** • "
+    f"Analysing **{data_name}** • "
     f"**{A['total_logs']:,}** events • "
     "Isolation Forest + Rule-based Engine"
 )
