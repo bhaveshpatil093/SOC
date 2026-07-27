@@ -583,10 +583,10 @@ def _get_file_fingerprint() -> str:
 
 
 @st.cache_resource(show_spinner="Loading and analysing logs…")
-def get_local_data_client(_path_key: str = "") -> LocalDataClient:
+def get_local_data_client(path_key: str = "") -> LocalDataClient:
     """Streamlit-cached singleton, keyed on the chosen file path."""
     client = LocalDataClient()
-    if _path_key:
-        client.data_path = Path(_path_key)
+    if path_key:
+        client.data_path = Path(path_key)
     client.get_analytics()   # pre-warm
     return client

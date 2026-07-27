@@ -119,7 +119,7 @@ def hex_to_rgba(h: str, alpha: float) -> str:
 
 # ─── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading and analysing local dataset..."):
-    client = get_local_data_client(_path_key=selected_path)
+    client = get_local_data_client(path_key=selected_path)
     A = client.get_analytics()
 
 if "error" in A:
