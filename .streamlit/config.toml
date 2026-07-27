@@ -3,15 +3,36 @@ base = "dark"
 primaryColor = "#58A6FF"
 backgroundColor = "#0D1117"
 secondaryBackgroundColor = "#161B22"
+codeBackgroundColor = "#161B22"
 textColor = "#E6EDF3"
-font = "sans serif"
+linkColor = "#58A6FF"
+borderColor = "#30363D"
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "8px"
+buttonRadius = "8px"
 
-[server]
-headless = false
-port = 8501
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+codeFontSize = "0.85rem"
+codeTextColor = "#E6EDF3"
+baseFontSize = 14
+baseFontWeight = 400
+headingFontSizes = ["32px", "24px", "20px", "16px", "14px", "12px"]
+headingFontWeights = [600, 600, 500, 500, 500, 500]
+linkUnderline = false
 
-[browser]
-gatherUsageStats = false
+chartCategoricalColors = ["#58A6FF", "#3FB950", "#D29922", "#BC8CFF", "#F85149"]
 
-[runner]
-magicEnabled = false
+redColor = "#F85149"
+orangeColor = "#D29922"
+yellowColor = "#D29922"
+greenColor = "#3FB950"
+blueColor = "#58A6FF"
+violetColor = "#BC8CFF"
+
+[theme.sidebar]
+backgroundColor = "#010409"
+secondaryBackgroundColor = "#161B22"
+codeBackgroundColor = "#161B22"
+borderColor = "#30363D"

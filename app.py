@@ -198,19 +198,19 @@ with st.sidebar:
     )
     st.markdown("<hr style='border-color:#30363D; margin:0.75rem 0;'>", unsafe_allow_html=True)
 
-    # Connection status indicator (lazy — doesn't connect until Settings is opened)
-    st.markdown("**Connection Status**")
-    if "es_health" in st.session_state:
-        health = st.session_state["es_health"]
-        css_class = "status-green" if health.get("connected") else "status-red"
-        label = "Connected" if health.get("connected") else "Disconnected"
+    # Local data status indicator
+    st.markdown("**Local Data Status**")
+    from core.local_data_client import get_local_data_client
+    local_client = get_local_data_client()
+    df = local_client.get_dataframe()
+    if not df.empty:
         st.markdown(
-            f"<span class='status-badge {css_class}'>{label}</span>",
+            "<span class='status-badge status-green'>Data Loaded</span>",
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            "<span class='status-badge status-grey'>Not checked</span>",
+            "<span class='status-badge status-red'>Data Error</span>",
             unsafe_allow_html=True,
         )
 
@@ -220,9 +220,8 @@ with st.sidebar:
     st.markdown("**Dataset**")
     st.markdown(
         "<p style='color:#8B949E; font-size:0.8rem; margin:0;'>"
-        f"Index: <code style='color:#79C0FF;'>{settings.es_index_pattern}</code><br>"
-        f"Period: June 2026<br>"
-        f"Volume: ~2.77B logs"
+        f"Source: <code style='color:#79C0FF;'>data/data.xlsx</code><br>"
+        f"Volume: {len(df):,} logs"
         "</p>",
         unsafe_allow_html=True,
     )
@@ -244,9 +243,9 @@ st.markdown(
             AI-driven threat detection and log analysis for large-scale security operations
         </div>
         <div>
-            <span class="hero-stat"><strong>2.77B</strong> Log Events</span>
-            <span class="hero-stat"><strong>June 2026</strong> Dataset</span>
-            <span class="hero-stat"><strong>Real-time</strong> ES Aggregations</span>
+            <span class="hero-stat"><strong>{len(df):,}</strong> Log Events</span>
+            <span class="hero-stat"><strong>Local</strong> Dataset</span>
+            <span class="hero-stat"><strong>Memory-based</strong> Analytics</span>
             <span class="hero-stat"><strong>ML-powered</strong> Anomaly Detection</span>
         </div>
     </div>
@@ -268,7 +267,7 @@ if config_errors:
 # ─── Quick-Start Info ─────────────────────────────────────────────────────────
 if not config_errors:
     st.markdown(
-        "<div class='info-banner'>✅ Configuration loaded — go to <strong>⚙️ Settings</strong> to test your Elasticsearch connection.</div>",
+        "<div class='info-banner'>✅ Ready to analyze local dataset.</div>",
         unsafe_allow_html=True,
     )
     st.markdown("")
@@ -355,11 +354,10 @@ col1, col2 = st.columns([2, 1])
 with col1:
     st.markdown("### Architecture Highlights")
     arch_points = [
-        ("🔒 Memory-safe", "All analytics use ES aggregations. Raw log scans are never performed."),
-        ("⚡ Aggregation-first", "date_histogram, terms, cardinality — sub-second answers from 2.77B docs."),
-        ("🔄 Batch processing", "search_after pagination for exports — never loads all data into memory."),
-        ("💾 Two-tier caching", "st.cache_data (in-session) + joblib disk cache (across restarts)."),
-        ("🔁 Retry logic", "Exponential backoff on transient ES errors via tenacity."),
+        ("🔒 Memory-safe", "All analytics use local Pandas Operations. Raw log scans are performant."),
+        ("⚡ Fast", "Vectorized calculations — fast answers from memory dataset."),
+        ("💾 In-Memory", "Data is pre-loaded directly from excel to memory."),
+        ("🔁 Offline", "No external dependencies, pure local execution."),
         ("🧩 Modular pages", "Each analytics page is independent — extend without rewriting core."),
     ]
     for icon_label, desc in arch_points:
@@ -374,10 +372,8 @@ with col2:
     st.markdown("### System Info")
     info_items = {
         "App Environment": settings.app_env.title(),
-        "ES Host": f"{settings.es_scheme}://{settings.es_host}:{settings.es_port}",
-        "Index Pattern": settings.es_index_pattern,
-        "Batch Size": f"{settings.batch_size:,}",
-        "Cache TTL": f"{settings.cache_ttl_seconds}s",
+        "Source File": "data.xlsx",
+        "Records": f"{len(df):,}",
         "Log Level": settings.log_level,
     }
     for k, v in info_items.items():

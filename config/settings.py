@@ -147,12 +147,6 @@ class Settings:
         Called at startup to surface misconfiguration early.
         """
         errors: List[str] = []
-        if not self.es_username:
-            errors.append("ES_USERNAME is not set")
-        if not self.es_password:
-            errors.append("ES_PASSWORD is not set")
-        if self.es_port <= 0 or self.es_port > 65535:
-            errors.append(f"ES_PORT={self.es_port} is invalid")
         if self.batch_size < 1 or self.batch_size > 10_000:
             errors.append(
                 f"BATCH_SIZE={self.batch_size} should be between 1 and 10,000"

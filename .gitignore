@@ -58,3 +58,8 @@ Thumbs.db
 
 # ─── Sigma Rules (user-uploaded, not bundled) ──────────────────────────────
 rules/uploaded/
+
+# ─── Data Directory ────────────────────────────────────────────────────────
+data/*.xlsx
+data/*.csv
+data/*.parquet
