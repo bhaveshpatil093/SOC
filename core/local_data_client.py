@@ -401,6 +401,31 @@ def _run_analytics(df: pd.DataFrame) -> Dict[str, Any]:
     results["n_anomalies"]  = int((preds == -1).sum())
     results["anomaly_rate"] = round(results["n_anomalies"] / n * 100, 2)
 
+    # ── Explainable AI (SHAP) for top anomalies ───────────────────
+    try:
+        import shap
+        top_k = min(500, n)
+        # Get indices of top k anomalies (highest anomaly score)
+        top_indices = np.argsort(anomaly_score)[-top_k:][::-1]
+        X_top = X[top_indices]
+        
+        explainer = shap.TreeExplainer(iso)
+        shap_values = explainer.shap_values(X_top)
+        
+        results["shap_values"] = shap_values
+        # expected_value might be a list or a single float
+        expected_val = explainer.expected_value
+        if isinstance(expected_val, list) or isinstance(expected_val, np.ndarray):
+            expected_val = expected_val[0]
+            
+        results["shap_base_value"] = expected_val
+        results["shap_feature_names"] = feat_cols
+        results["shap_indices"] = df.index[top_indices]  # Store original dataframe index
+    except Exception as e:
+        logger.error(f"Failed to compute SHAP: {e}")
+        results["shap_values"] = None
+
+
     # ── Rule-based threat tagging ─────────────────────────────────
     suspicious_procs = {
         "powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe",
@@ -453,6 +478,50 @@ def _run_analytics(df: pd.DataFrame) -> Dict[str, Any]:
         user_proc = user_proc.sort_values("count", ascending=False).head(50)
         results["user_process_matrix"] = user_proc
     else:
+        results["user_process_matrix"] = pd.DataFrame()
+
+    # ── IP Monitoring / Network ──────────────────────────────────
+    host_ip_col = next((c for c in ["host.ip"] if c in df.columns), None)
+    event_ip_col = next((c for c in ["event.ip", "source.ip", "destination.ip"] if c in df.columns), None)
+    
+    # 1. Parse IPs (filter out loopbacks)
+    if host_ip_col:
+        s_ip = df[host_ip_col].dropna().astype(str).str.split(", ").explode()
+        s_ip = s_ip[~s_ip.isin(["127.0.0.1", "::1"])]
+        top_host_ips = s_ip.value_counts().head(10).reset_index()
+        top_host_ips.columns = ["ip", "count"]
+        results["top_host_ips"] = top_host_ips
+    else:
+        results["top_host_ips"] = pd.DataFrame()
+        
+    if event_ip_col:
+        s_eip = df[event_ip_col].dropna().astype(str).str.split(", ").explode()
+        s_eip = s_eip[~s_eip.isin(["127.0.0.1", "::1"])]
+        top_event_ips = s_eip.value_counts().head(10).reset_index()
+        top_event_ips.columns = ["ip", "count"]
+        results["top_event_ips"] = top_event_ips
+    else:
+        results["top_event_ips"] = pd.DataFrame()
+
+    # 2. IP Timeline
+    if ts_col and host_ip_col:
+        df_ip_time = df[[ts_col, host_ip_col]].dropna().copy()
+        df_ip_time["hour"] = df_ip_time[ts_col].dt.floor("h")
+        ip_timeline = df_ip_time.groupby("hour").size().reset_index(name="count")
+        results["ip_timeline"] = ip_timeline
+    else:
+        results["ip_timeline"] = pd.DataFrame()
+
+    # 3. Anomalous IPs
+    if host_ip_col:
+        anom_ips = df_scored[df_scored["is_anomaly"]][["threat_level", host_ip_col]].dropna()
+        anom_ips = anom_ips.assign(ip=anom_ips[host_ip_col].str.split(", ")).explode("ip")
+        anom_ips = anom_ips[~anom_ips["ip"].isin(["127.0.0.1", "::1"])]
+        anom_ip_summary = anom_ips.groupby(["ip", "threat_level"]).size().reset_index(name="count")
+        anom_ip_summary = anom_ip_summary.sort_values("count", ascending=False).head(20)
+        results["anomalous_ips"] = anom_ip_summary
+    else:
+        results["anomalous_ips"] = pd.DataFrame()
         results["user_process_matrix"] = pd.DataFrame()
 
     # ── Anomaly score distribution ────────────────────────────────
@@ -560,7 +629,7 @@ class LocalDataClient:
         return self._df
 
     def get_analytics(self) -> Dict[str, Any]:
-        if self._analytics is None or self._check_stale():
+        if self._analytics is None or self._check_stale() or "shap_values" not in self._analytics:
             df = self.get_dataframe()
             if df.empty:
                 self._analytics = {"error": "No data loaded"}

@@ -209,7 +209,7 @@ with c7:
 st.space("small")
 
 # ─── Tabs ──────────────────────────────────────────────────────────────────────
-tab_over, tab_threats, tab_anom, tab_patterns, tab_identity, tab_code, tab_files, tab_telemetry, tab_events = st.tabs([
+tab_over, tab_threats, tab_anom, tab_patterns, tab_identity, tab_code, tab_files, tab_ip, tab_telemetry, tab_events = st.tabs([
     ":material/home: Overview",
     ":material/warning: Threats",
     ":material/smart_toy: Anomalies",
@@ -217,6 +217,7 @@ tab_over, tab_threats, tab_anom, tab_patterns, tab_identity, tab_code, tab_files
     ":material/person: Identity",
     ":material/code: Code Integrity",
     ":material/folder: File Activity",
+    ":material/wifi: IP Monitoring",
     ":material/search: Deep Telemetry",
     ":material/table_rows: Events",
 ])
@@ -427,6 +428,78 @@ with tab_anom:
                 legend=dict(orientation="h", y=1.05),
             )
             st.plotly_chart(fig_hist, use_container_width=True)
+
+    # ── Explainable AI (SHAP) ─────────────────────────────────────
+    st.divider()
+    with st.container(border=True):
+        st.subheader("Explainable AI (SHAP)", anchor=False)
+        st.markdown("Understand *why* the Machine Learning engine flagged an event as anomalous. SHAP values mathematically calculate the contribution of each individual feature to the final anomaly score (positive values push the score higher/more anomalous).")
+        
+        shap_values = A.get("shap_values")
+        shap_indices = A.get("shap_indices")
+        shap_base = A.get("shap_base_value")
+        shap_feats = A.get("shap_feature_names")
+        
+        if shap_values is not None and shap_indices is not None and len(shap_indices) > 0:
+            options = []
+            for i, idx in enumerate(shap_indices):
+                if idx in df_view.index:
+                    row = df_view.loc[idx]
+                    host = row.get("host.name") or row.get("host.hostname") or "unknown"
+                    score = row.get("anomaly_score", 0.0)
+                    options.append((i, idx, f"Rank {i+1} | Score: {score:.3f} | Host: {host} (Log ID: {idx})"))
+                    
+            if options:
+                selected = st.selectbox("Select Anomaly to Explain:", options, format_func=lambda x: x[2])
+                
+                if selected:
+                    i_relative = selected[0]
+                    idx = selected[1]
+                    
+                    import shap
+                    import matplotlib.pyplot as plt
+                    
+                    # Create Explanation object for waterfall plot
+                    # Note: For Isolation Forest, lower values indicate anomaly, so we invert SHAP values for intuitive display
+                    # where positive values = more anomalous.
+                    exp = shap.Explanation(
+                        values=-shap_values[i_relative], 
+                        base_values=-shap_base,
+                        feature_names=shap_feats
+                    )
+                    
+                    fig, ax = plt.subplots(figsize=(10, 5))
+                    fig.patch.set_facecolor('#091322')
+                    ax.set_facecolor('#091322')
+                    
+                    shap.plots.waterfall(exp, show=False)
+                    
+                    # Dark mode styling for matplotlib
+                    for text in plt.gca().texts:
+                        text.set_color('#E6EDF3')
+                    plt.gca().xaxis.label.set_color('#A1B0C4')
+                    plt.gca().tick_params(axis='x', colors='#A1B0C4')
+                    plt.gca().tick_params(axis='y', colors='#A1B0C4')
+                    for spine in plt.gca().spines.values():
+                        spine.set_color('#1a2d45')
+                        
+                    st.pyplot(fig, clear_figure=True)
+                    
+                    with st.expander("💡 How to read this SHAP graph?", expanded=True):
+                        st.markdown("""
+                        **SHAP (SHapley Additive exPlanations)** breaks down exactly how the Machine Learning model reached its final anomaly score for this specific event.
+                        
+                        - **The Base Value ($E[f(X)]$):** Shown at the bottom, this is the average anomaly score across the dataset. 
+                        - **The Red Bars (Positive Values):** These features pushed the anomaly score **higher** (making the event more suspicious). The length of the bar shows the magnitude of its impact.
+                        - **The Blue Bars (Negative Values):** These features pushed the score **lower** (making the event appear more normal).
+                        - **The Final Value ($f(x)$):** Shown at the top right, this is the actual anomaly score assigned to this event by the AI.
+                        
+                        *For example: If `proc_rarity` has a large red bar, it means this event was flagged heavily because the process running is extremely rare in your environment.*
+                        """)
+            else:
+                st.info("Top anomalous events have been filtered out by the current sidebar settings.")
+        else:
+            st.warning("SHAP values not available. The ML pipeline may have failed to compute them.")
 
     with col_ab:
         st.subheader("Anomaly score per host", anchor=False)
@@ -712,7 +785,74 @@ with tab_files:
             st.info("No file path data.")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 8 — DEEP TELEMETRY EXPLORER (ALL 235 COLUMNS)
+# TAB 8 — IP MONITORING
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_ip:
+    col_ipt, col_ipr = st.columns([2, 1])
+    
+    with col_ipt:
+        st.subheader("IP Activity over time", anchor=False)
+        ip_tl = A.get("ip_timeline", pd.DataFrame())
+        if not ip_tl.empty:
+            fig_ipt = go.Figure(go.Scatter(
+                x=ip_tl["hour"], y=ip_tl["count"],
+                fill="tozeroy",
+                line=dict(color="#BC8CFF", width=2),
+                fillcolor="rgba(188,140,255,0.18)",
+                hovertemplate="<b>%{x|%Y-%m-%d %H:%M}</b><br>IP Events: %{y:,}<extra></extra>",
+            ))
+            fig_ipt.update_layout(
+                **_dark(height=300),
+                xaxis=dict(showgrid=False),
+                yaxis=dict(gridcolor="#30363D", title="Log Volume"),
+            )
+            st.plotly_chart(fig_ipt, use_container_width=True)
+        else:
+            st.info("No timeline data available for IP addresses.")
+            
+        st.subheader("High Threat & Anomalous IPs", anchor=False)
+        anom_ips = A.get("anomalous_ips", pd.DataFrame())
+        if not anom_ips.empty:
+            def _style_anom_ip(val):
+                if val == "Critical": return "color:#F85149;font-weight:700"
+                if val == "High Threat": return "color:#D29922;font-weight:700"
+                return ""
+            st.dataframe(
+                anom_ips.style.map(_style_anom_ip, subset=["threat_level"]),
+                use_container_width=True, hide_index=True, height=250
+            )
+        else:
+            st.success("No anomalous or threat IP activity detected.", icon=":material/check_circle:")
+            
+    with col_ipr:
+        st.subheader("Top Active Host IPs", anchor=False)
+        top_host_ips = A.get("top_host_ips", pd.DataFrame())
+        if not top_host_ips.empty:
+            fig_h_ip = px.bar(
+                top_host_ips.sort_values("count", ascending=True),
+                x="count", y="ip", orientation="h",
+                color_discrete_sequence=["#58A6FF"]
+            )
+            fig_h_ip.update_layout(**_dark(height=250))
+            st.plotly_chart(fig_h_ip, use_container_width=True)
+        else:
+            st.info("No Host IP data.")
+            
+        st.subheader("Top Event IPs", anchor=False)
+        top_evt_ips = A.get("top_event_ips", pd.DataFrame())
+        if not top_evt_ips.empty:
+            fig_e_ip = px.bar(
+                top_evt_ips.sort_values("count", ascending=True),
+                x="count", y="ip", orientation="h",
+                color_discrete_sequence=["#3FB950"]
+            )
+            fig_e_ip.update_layout(**_dark(height=250))
+            st.plotly_chart(fig_e_ip, use_container_width=True)
+        else:
+            st.info("No secondary Event/Source IP data found in logs.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 9 — DEEP TELEMETRY EXPLORER (ALL 235 COLUMNS)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_telemetry:
     schema = A.get("schema", {})
