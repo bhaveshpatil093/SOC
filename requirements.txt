@@ -24,3 +24,4 @@ pysigma-backend-elasticsearch>=1.1.0
 
 # ─── Type Hints (Python < 3.11 compat) ─────────────────────────────────────
 typing-extensions>=4.10.0
+python-calamine>=0.2.0
