@@ -128,12 +128,12 @@ def _load_and_flatten(path: Path) -> pd.DataFrame:
     elif ext == ".csv":
         file_size_gb = os.path.getsize(path) / (1024**3)
         if file_size_gb > 0.5:
-            logger.warning(f"CSV file is massive ({file_size_gb:.1f} GB). Directly sampling 50,000 rows and applying manual headers.")
+            logger.warning(f"CSV file is massive ({file_size_gb:.1f} GB). Directly sampling 150,000 rows and applying manual headers.")
             # june_logs.csv is missing headers and line 0 is corrupted
             cols = ['agent', 'process', '@timestamp', 'ecs', 'data_stream', 'elastic', 'host', 'event', 'message', 'user', 'file', 'Effective_process']
             raw = pd.read_csv(
                 path, 
-                nrows=50_000, 
+                nrows=150_000, 
                 skiprows=1, 
                 header=None, 
                 on_bad_lines="skip", 
