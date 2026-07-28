@@ -115,6 +115,8 @@ DICT_COLS = {"agent", "process", "ecs", "data_stream", "elastic",
 
 MAX_ROWS = 250_000
 
+import os
+
 def _load_and_flatten(path: Path) -> pd.DataFrame:
     logger.info("Loading %s", path)
     t0 = time.monotonic()
@@ -124,7 +126,17 @@ def _load_and_flatten(path: Path) -> pd.DataFrame:
         # Calamine engine is 5-10x faster than openpyxl for massive files
         raw = pd.read_excel(path, engine="calamine")
     elif ext == ".csv":
-        raw = pd.read_csv(path, low_memory=False)
+        file_size_gb = os.path.getsize(path) / (1024**3)
+        if file_size_gb > 0.5:
+            logger.warning(f"CSV file is massive ({file_size_gb:.1f} GB). Using streaming chunk reader to prevent memory crash.")
+            chunk_iter = pd.read_csv(path, chunksize=250_000, low_memory=False)
+            chunks = []
+            for chunk in chunk_iter:
+                # Sample 5% of each chunk to drastically reduce RAM usage while streaming
+                chunks.append(chunk.sample(frac=0.05, random_state=42))
+            raw = pd.concat(chunks, ignore_index=True)
+        else:
+            raw = pd.read_csv(path, low_memory=False)
     elif ext == ".parquet":
         raw = pd.read_parquet(path)
     else:
