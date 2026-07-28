@@ -183,21 +183,81 @@ with tab4:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab5:
     with st.container(border=True):
-        st.header("Elastic Common Schema (ECS) Mapping")
-        st.markdown("The platform dynamically discovers which ECS fields are present and adapts its analytics.")
+        st.header("Elastic Common Schema (ECS) Data Dictionary")
+        st.markdown("The platform dynamically profiles all columns in your active dataset. Below is the full data dictionary for all available telemetry fields.")
         
-        schema_df = pd.DataFrame([
-            {"Role": "Hostname", "Candidate Fields": "host.hostname → host.name", "Usage": "KPI count, frequency encoding, host-level filtering"},
-            {"Role": "Username", "Candidate Fields": "user.name", "Usage": "Identity analytics, privilege escalation detection"},
-            {"Role": "Event Action", "Candidate Fields": "event.action", "Usage": "Action distribution charts, label encoding for ML"},
-            {"Role": "Process Name", "Candidate Fields": "process.name", "Usage": "LOLBin matching, process tree analysis, rarity scoring"},
-            {"Role": "Command Line", "Candidate Fields": "process.command_line", "Usage": "Obfuscation regex detection, command length feature"},
-            {"Role": "Parent Process", "Candidate Fields": "process.parent.name", "Usage": "Parent→child process tree visualization"},
-            {"Role": "Timestamp", "Candidate Fields": "@timestamp", "Usage": "Timeline visualization, temporal feature extraction"},
-            {"Role": "Code Signature", "Candidate Fields": "process.code_signature.trusted", "Usage": "Code signature trust status (true/false breakdown)"},
-            {"Role": "File Path", "Candidate Fields": "file.path", "Usage": "Most common file paths — detects access to sensitive directories."}
-        ])
-        st.table(schema_df)
+        # Pull active schema from the LocalDataClient
+        from core.local_data_client import get_local_data_client
+        local_client = get_local_data_client()
+        A = local_client.get_analytics()
+        schema = A.get("schema", {})
+        col_profiles = schema.get("column_profiles", {})
+        
+        if col_profiles:
+            # Helper to generate human-readable descriptions for ECS fields
+            def _get_ecs_desc(col):
+                if col == "@timestamp": return "The exact date and time the event occurred."
+                if col.startswith("host.ip"): return "The IP address of the host machine."
+                if col.startswith("host.mac"): return "The MAC address of the host machine."
+                if col.startswith("host.hostname"): return "The hostname of the machine."
+                if col.startswith("host.os"): return "Operating system details (family, version, platform)."
+                if col.startswith("process.name"): return "The name of the executing process/binary."
+                if col.startswith("process.executable"): return "The absolute path to the executable."
+                if col.startswith("process.command_line"): return "The full command line string used to launch the process."
+                if col.startswith("process.parent"): return "Information about the parent process that spawned this event."
+                if col.startswith("process.pid"): return "The Process ID (PID) assigned by the OS."
+                if col.startswith("process.entity_id"): return "A unique identifier for the process execution."
+                if col.startswith("user.name"): return "The username of the account that triggered the event."
+                if col.startswith("user.domain"): return "The domain the user belongs to."
+                if col.startswith("user.id"): return "The unique SID or UID of the user."
+                if col.startswith("event.action"): return "The specific action taken (e.g., 'process_started', 'file_created')."
+                if col.startswith("event.category"): return "The high-level category of the event."
+                if col.startswith("event.dataset"): return "The dataset or log source module generating the event."
+                if col.startswith("file.path"): return "The absolute path of the file being interacted with."
+                if col.startswith("file.name"): return "The name of the file."
+                if col.startswith("file.extension"): return "The file extension."
+                if col.startswith("file.hash"): return "Cryptographic hashes (MD5, SHA1, SHA256) of the file."
+                if col.startswith("agent."): return "Metadata about the Elastic/Beat agent collecting the logs."
+                if col.startswith("ecs.version"): return "The version of the Elastic Common Schema used."
+                if col.startswith("elastic.agent"): return "Metadata specifically about Elastic Agent status."
+                if col.startswith("data_stream."): return "Information about the Elasticsearch data stream routing."
+                
+                parts = col.split(".")
+                if len(parts) > 1:
+                    return f"Data related to the '{parts[-1]}' property of the '{parts[0]}' object."
+                return "Custom or untyped telemetry field."
+            
+            # Build the full dictionary
+            dict_data = []
+            for col, prof in col_profiles.items():
+                dict_data.append({
+                    "Field Name": col,
+                    "Data Type": prof.get("dtype", "unknown"),
+                    "Description": _get_ecs_desc(col),
+                    "Fill Rate": f"{prof.get('fill_pct', 0)}%"
+                })
+                
+            dict_df = pd.DataFrame(dict_data).sort_values("Field Name")
+            
+            # Search filter
+            search_term = st.text_input("🔍 Search for a specific field...", "")
+            if search_term:
+                dict_df = dict_df[dict_df["Field Name"].str.contains(search_term, case=False)]
+                
+            st.dataframe(
+                dict_df,
+                use_container_width=True, 
+                hide_index=True,
+                height=600,
+                column_config={
+                    "Field Name": st.column_config.TextColumn("Field Name", width="medium"),
+                    "Data Type": st.column_config.TextColumn("Type", width="small"),
+                    "Description": st.column_config.TextColumn("Description", width="large"),
+                    "Fill Rate": st.column_config.TextColumn("Fill Rate", width="small")
+                }
+            )
+        else:
+            st.info("No schema data available. Please ensure a dataset is loaded.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 6 — VISUALIZATIONS
