@@ -197,63 +197,63 @@ with tab5:
             # Helper to generate highly detailed SOC-focused descriptions for ECS fields
             def _get_ecs_desc(col):
                 # Core Event metadata
-                if col == "@timestamp": return "**[Core] Event Timestamp:** The exact UTC date and time the event occurred. Crucial for timeline reconstruction and identifying temporal anomalies (e.g., after-hours access)."
-                if col.startswith("event.action"): return "**[Event] Action:** The specific action taken (e.g., 'process_started', 'file_created'). Used to build action distribution baselines and isolate suspicious behaviors."
-                if col.startswith("event.category"): return "**[Event] Category:** The high-level category of the event (e.g., 'process', 'network', 'authentication'). Useful for macro-level filtering."
-                if col.startswith("event.dataset"): return "**[Event] Dataset:** The log source module generating the event (e.g., 'windows.sysmon_operational'). Identifies the origin of the telemetry."
-                if col.startswith("event.type"): return "**[Event] Type:** The nature of the event (e.g., 'start', 'creation', 'connection'). Used alongside category for granular threat hunting."
-                if col.startswith("event.outcome"): return "**[Event] Outcome:** Whether the event succeeded or failed. (e.g., 'success', 'failure'). Critical for detecting brute-force attacks or denied access."
-                if col.startswith("event.code"): return "**[Event] Event ID:** The raw Windows Event ID or native log code (e.g., '4624' for login). Often used in deterministic threat signatures."
+                if col == "@timestamp": return "[Core] Event Timestamp: The exact UTC date and time the event occurred. Crucial for timeline reconstruction and identifying temporal anomalies (e.g., after-hours access)."
+                if col.startswith("event.action"): return "[Event] Action: The specific action taken (e.g., 'process_started', 'file_created'). Used to build action distribution baselines and isolate suspicious behaviors."
+                if col.startswith("event.category"): return "[Event] Category: The high-level category of the event (e.g., 'process', 'network', 'authentication'). Useful for macro-level filtering."
+                if col.startswith("event.dataset"): return "[Event] Dataset: The log source module generating the event (e.g., 'windows.sysmon_operational'). Identifies the origin of the telemetry."
+                if col.startswith("event.type"): return "[Event] Type: The nature of the event (e.g., 'start', 'creation', 'connection'). Used alongside category for granular threat hunting."
+                if col.startswith("event.outcome"): return "[Event] Outcome: Whether the event succeeded or failed. (e.g., 'success', 'failure'). Critical for detecting brute-force attacks or denied access."
+                if col.startswith("event.code"): return "[Event] Event ID: The raw Windows Event ID or native log code (e.g., '4624' for login). Often used in deterministic threat signatures."
                 
                 # Process metadata (Highest Value for SOC)
-                if col.startswith("process.name"): return "**[Process] Binary Name:** The name of the executing process. Continuously monitored against LOLBin (Living Off The Land Binaries) watchlists."
-                if col.startswith("process.executable"): return "**[Process] Absolute Path:** The full disk path to the executable. Used to detect processes masquerading from temp directories or AppData."
-                if col.startswith("process.command_line"): return "**[Process] Command Line:** The full string used to launch the process. Highly critical for detecting obfuscation (base64), download cradles, and malicious switches."
-                if col.startswith("process.args"): return "**[Process] Arguments:** Array of arguments passed to the process. Often contains encoded payloads or target IPs."
-                if col.startswith("process.parent.name"): return "**[Process] Parent Binary:** The process that spawned this event. Used to build process trees and detect anomalous lineages (e.g., WINWORD.EXE spawning cmd.exe)."
-                if col.startswith("process.parent.executable"): return "**[Process] Parent Path:** The disk path of the parent process. Validates process lineage integrity."
-                if col.startswith("process.pid"): return "**[Process] PID:** The Process ID assigned by the OS. Useful for pivoting and joining multiple events related to the same execution."
-                if col.startswith("process.parent.pid"): return "**[Process] Parent PID:** Used to reconstruct the exact process hierarchy in timeline analysis."
-                if col.startswith("process.entity_id"): return "**[Process] Entity ID:** A unique string identifying the exact process execution instance across multiple log systems."
-                if col.startswith("process.code_signature"): return "**[Process] Code Signature:** Details about the cryptographic signature of the binary. Indicates if a binary is trusted, untrusted, or tampered with."
-                if col.startswith("process.working_directory"): return "**[Process] Working Directory:** The directory from which the process was launched. Used to detect executions from suspicious staging folders."
+                if col.startswith("process.name"): return "[Process] Binary Name: The name of the executing process. Continuously monitored against LOLBin (Living Off The Land Binaries) watchlists."
+                if col.startswith("process.executable"): return "[Process] Absolute Path: The full disk path to the executable. Used to detect processes masquerading from temp directories or AppData."
+                if col.startswith("process.command_line"): return "[Process] Command Line: The full string used to launch the process. Highly critical for detecting obfuscation (base64), download cradles, and malicious switches."
+                if col.startswith("process.args"): return "[Process] Arguments: Array of arguments passed to the process. Often contains encoded payloads or target IPs."
+                if col.startswith("process.parent.name"): return "[Process] Parent Binary: The process that spawned this event. Used to build process trees and detect anomalous lineages (e.g., WINWORD.EXE spawning cmd.exe)."
+                if col.startswith("process.parent.executable"): return "[Process] Parent Path: The disk path of the parent process. Validates process lineage integrity."
+                if col.startswith("process.pid"): return "[Process] PID: The Process ID assigned by the OS. Useful for pivoting and joining multiple events related to the same execution."
+                if col.startswith("process.parent.pid"): return "[Process] Parent PID: Used to reconstruct the exact process hierarchy in timeline analysis."
+                if col.startswith("process.entity_id"): return "[Process] Entity ID: A unique string identifying the exact process execution instance across multiple log systems."
+                if col.startswith("process.code_signature"): return "[Process] Code Signature: Details about the cryptographic signature of the binary. Indicates if a binary is trusted, untrusted, or tampered with."
+                if col.startswith("process.working_directory"): return "[Process] Working Directory: The directory from which the process was launched. Used to detect executions from suspicious staging folders."
                 
                 # Host & Network
-                if col.startswith("host.ip"): return "**[Host] IP Address:** The network IP address of the endpoint. Critical for identifying lateral movement or external C2 beacons."
-                if col.startswith("host.mac"): return "**[Host] MAC Address:** The hardware address of the endpoint. Useful for persistent asset tracking."
-                if col.startswith("host.hostname") or col == "host.name": return "**[Host] Hostname:** The machine's identity on the domain. Used to track anomaly scores on a per-machine basis."
-                if col.startswith("host.os"): return "**[Host] Operating System:** OS details (family, version). Used to determine if the host is vulnerable to specific OS-level exploits."
-                if col.startswith("host.id"): return "**[Host] UUID:** The unique identifier for the host machine within the enterprise architecture."
+                if col.startswith("host.ip"): return "[Host] IP Address: The network IP address of the endpoint. Critical for identifying lateral movement or external C2 beacons."
+                if col.startswith("host.mac"): return "[Host] MAC Address: The hardware address of the endpoint. Useful for persistent asset tracking."
+                if col.startswith("host.hostname") or col == "host.name": return "[Host] Hostname: The machine's identity on the domain. Used to track anomaly scores on a per-machine basis."
+                if col.startswith("host.os"): return "[Host] Operating System: OS details (family, version). Used to determine if the host is vulnerable to specific OS-level exploits."
+                if col.startswith("host.id"): return "[Host] UUID: The unique identifier for the host machine within the enterprise architecture."
                 
                 # User Identity
-                if col.startswith("user.name"): return "**[Identity] Username:** The account that triggered the event. Essential for tracking insider threats and compromised accounts."
-                if col.startswith("user.domain"): return "**[Identity] Domain:** The Active Directory domain of the user. Helps differentiate local accounts from enterprise identities."
-                if col.startswith("user.id"): return "**[Identity] User SID/UID:** The immutable system identifier for the user. More reliable than username tracking."
-                if col.startswith("user.roles"): return "**[Identity] Privileges:** The security groups or roles assigned to the user. Critical for detecting privilege escalation."
+                if col.startswith("user.name"): return "[Identity] Username: The account that triggered the event. Essential for tracking insider threats and compromised accounts."
+                if col.startswith("user.domain"): return "[Identity] Domain: The Active Directory domain of the user. Helps differentiate local accounts from enterprise identities."
+                if col.startswith("user.id"): return "[Identity] User SID/UID: The immutable system identifier for the user. More reliable than username tracking."
+                if col.startswith("user.roles"): return "[Identity] Privileges: The security groups or roles assigned to the user. Critical for detecting privilege escalation."
                 
                 # File Activity
-                if col.startswith("file.path"): return "**[File] Target Path:** The absolute path of the file being interacted with. Scanned for access to sensitive directories (e.g., System32, shadow copies)."
-                if col.startswith("file.name"): return "**[File] Filename:** The name of the file created, modified, or deleted. Checked against known ransomware extensions."
-                if col.startswith("file.extension"): return "**[File] Extension:** The file type suffix. Sudden spikes in `.encrypted` or obscure extensions trigger ransomware alerts."
-                if col.startswith("file.hash"): return "**[File] Hash:** Cryptographic checksums (MD5, SHA256) of the file. Used to cross-reference against Threat Intelligence platforms (VirusTotal)."
-                if col.startswith("file.size"): return "**[File] Size:** File size in bytes. Anomalous sizes can indicate data exfiltration or staging."
-                if col.startswith("file.owner"): return "**[File] Owner:** The user who owns the file. Used to detect unauthorized ownership changes."
+                if col.startswith("file.path"): return "[File] Target Path: The absolute path of the file being interacted with. Scanned for access to sensitive directories (e.g., System32, shadow copies)."
+                if col.startswith("file.name"): return "[File] Filename: The name of the file created, modified, or deleted. Checked against known ransomware extensions."
+                if col.startswith("file.extension"): return "[File] Extension: The file type suffix. Sudden spikes in `.encrypted` or obscure extensions trigger ransomware alerts."
+                if col.startswith("file.hash"): return "[File] Hash: Cryptographic checksums (MD5, SHA256) of the file. Used to cross-reference against Threat Intelligence platforms (VirusTotal)."
+                if col.startswith("file.size"): return "[File] Size: File size in bytes. Anomalous sizes can indicate data exfiltration or staging."
+                if col.startswith("file.owner"): return "[File] Owner: The user who owns the file. Used to detect unauthorized ownership changes."
                 
                 # Agent & Elastic Routing
-                if col.startswith("agent.name") or col.startswith("agent.id"): return "**[Telemetry] Agent ID:** Identifies the specific data collection agent installed on the endpoint."
-                if col.startswith("agent.version"): return "**[Telemetry] Agent Version:** The software version of the log shipper. Useful for troubleshooting dropped logs."
-                if col.startswith("ecs.version"): return "**[Telemetry] ECS Version:** The version of the Elastic Common Schema used to normalize this event."
-                if col.startswith("data_stream"): return "**[Telemetry] Data Stream:** Elasticsearch routing information (dataset, namespace, type). Invisible to the SOC analyst but necessary for backend pipelines."
-                if col.startswith("elastic.agent"): return "**[Telemetry] Elastic Agent:** Health and status metadata regarding the Elastic Agent daemon."
+                if col.startswith("agent.name") or col.startswith("agent.id"): return "[Telemetry] Agent ID: Identifies the specific data collection agent installed on the endpoint."
+                if col.startswith("agent.version"): return "[Telemetry] Agent Version: The software version of the log shipper. Useful for troubleshooting dropped logs."
+                if col.startswith("ecs.version"): return "[Telemetry] ECS Version: The version of the Elastic Common Schema used to normalize this event."
+                if col.startswith("data_stream"): return "[Telemetry] Data Stream: Elasticsearch routing information (dataset, namespace, type). Invisible to the SOC analyst but necessary for backend pipelines."
+                if col.startswith("elastic.agent"): return "[Telemetry] Elastic Agent: Health and status metadata regarding the Elastic Agent daemon."
                 
                 # Fallback for nested elements
                 parts = col.split(".")
                 if len(parts) > 1:
                     category = parts[0].title()
                     prop = " ".join(parts[1:]).replace("_", " ").title()
-                    return f"**[{category}] {prop}:** Granular property related to the {parts[0]} schema. Analyzed dynamically by the ML engine."
+                    return f"[{category}] {prop}: Granular property related to the {parts[0]} schema. Analyzed dynamically by the ML engine."
                 
-                return "**[Custom Field]** Untyped telemetry field outside of the standard ECS specification."
+                return "[Custom Field] Untyped telemetry field outside of the standard ECS specification."
             
             # Build the full dictionary
             dict_data = []
