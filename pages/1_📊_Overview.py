@@ -500,7 +500,15 @@ with tab_anom:
                         - **The Blue Bars (Negative Values):** These features pushed the score **lower** (making the event appear more normal).
                         - **The Final Value ($f(x)$):** Shown at the top right, this is the actual anomaly score assigned to this event by the AI.
                         
-                        *For example: If `proc_rarity` has a large red bar, it means this event was flagged heavily because the process running is extremely rare in your environment.*
+                        ---
+                        ### 📈 Interpreting the Final Score
+                        **In this chart, a HIGHER final value ($f(x)$) indicates a higher threat.**
+                        
+                        - **Critical / High Threat:** Values pushed significantly higher than the base average (e.g., closer to `0` or positive). These are the most extreme outliers.
+                        - **Suspicious:** Values slightly higher than the base average. 
+                        - **Normal:** Lower (deeply negative) values (e.g., `-10` to `-12`).
+                        
+                        *Example: If `proc_rarity` has a large red bar, it means this event was flagged heavily because the process running is extremely rare in your environment.*
                         """)
             else:
                 st.info("Top anomalous events have been filtered out by the current sidebar settings.")
