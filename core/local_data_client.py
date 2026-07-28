@@ -128,14 +128,19 @@ def _load_and_flatten(path: Path) -> pd.DataFrame:
     elif ext == ".csv":
         file_size_gb = os.path.getsize(path) / (1024**3)
         if file_size_gb > 0.5:
-            logger.warning(f"CSV file is massive ({file_size_gb:.1f} GB). Using streaming chunk reader to prevent memory crash.")
-            # Added on_bad_lines='skip' to prevent crashing on unescaped commas in log fields
-            chunk_iter = pd.read_csv(path, chunksize=250_000, low_memory=False, on_bad_lines="skip", engine="c")
-            chunks = []
-            for chunk in chunk_iter:
-                # Sample 5% of each chunk to drastically reduce RAM usage while streaming
-                chunks.append(chunk.sample(frac=0.05, random_state=42))
-            raw = pd.concat(chunks, ignore_index=True)
+            logger.warning(f"CSV file is massive ({file_size_gb:.1f} GB). Directly sampling 25,000 rows and applying manual headers.")
+            # june_logs.csv is missing headers and line 0 is corrupted
+            cols = ['agent', 'process', '@timestamp', 'ecs', 'data_stream', 'elastic', 'host', 'event', 'message', 'user', 'file', 'Effective_process']
+            raw = pd.read_csv(
+                path, 
+                nrows=25_000, 
+                skiprows=1, 
+                header=None, 
+                on_bad_lines="skip", 
+                engine="c",
+                usecols=range(12),
+                names=cols
+            )
         else:
             raw = pd.read_csv(path, low_memory=False, on_bad_lines="skip", engine="c")
     elif ext == ".parquet":
