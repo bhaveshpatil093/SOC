@@ -459,31 +459,37 @@ with tab_anom:
                     import shap
                     import matplotlib.pyplot as plt
                     
-                    # Create Explanation object for waterfall plot
-                    # Note: For Isolation Forest, lower values indicate anomaly, so we invert SHAP values for intuitive display
-                    # where positive values = more anomalous.
-                    exp = shap.Explanation(
-                        values=-shap_values[i_relative], 
-                        base_values=-shap_base,
-                        feature_names=shap_feats
-                    )
-                    
-                    fig, ax = plt.subplots(figsize=(10, 5))
-                    fig.patch.set_facecolor('#091322')
-                    ax.set_facecolor('#091322')
-                    
-                    shap.plots.waterfall(exp, show=False)
-                    
-                    # Dark mode styling for matplotlib
-                    for text in plt.gca().texts:
-                        text.set_color('#E6EDF3')
-                    plt.gca().xaxis.label.set_color('#A1B0C4')
-                    plt.gca().tick_params(axis='x', colors='#A1B0C4')
-                    plt.gca().tick_params(axis='y', colors='#A1B0C4')
-                    for spine in plt.gca().spines.values():
-                        spine.set_color('#1a2d45')
+                    # Temporarily force matplotlib defaults for dark mode BEFORE plotting
+                    with plt.rc_context({
+                        'text.color': '#A1B0C4',
+                        'axes.labelcolor': '#A1B0C4',
+                        'xtick.color': '#A1B0C4',
+                        'ytick.color': '#A1B0C4',
+                        'axes.edgecolor': '#1a2d45',
+                        'figure.facecolor': '#091322',
+                        'axes.facecolor': '#091322'
+                    }):
+                        # Create Explanation object for waterfall plot
+                        # Note: For Isolation Forest, lower values indicate anomaly, so we invert SHAP values for intuitive display
+                        # where positive values = more anomalous.
+                        exp = shap.Explanation(
+                            values=-shap_values[i_relative], 
+                            base_values=-shap_base,
+                            feature_names=shap_feats
+                        )
                         
-                    st.pyplot(fig, clear_figure=True)
+                        fig, ax = plt.subplots(figsize=(10, 5))
+                        shap.plots.waterfall(exp, show=False)
+                        
+                        # SHAP specifically hardcodes some text elements to black/gray, so we override them manually as well:
+                        for text in ax.texts:
+                            text.set_color('#E6EDF3')
+                        for label in ax.get_yticklabels():
+                            label.set_color('#A1B0C4')
+                        for label in ax.get_xticklabels():
+                            label.set_color('#A1B0C4')
+                            
+                        st.pyplot(fig, clear_figure=True)
                     
                     with st.expander("💡 How to read this SHAP graph?", expanded=True):
                         st.markdown("""
