@@ -54,6 +54,8 @@ def _file_fingerprint(path: Path) -> str:
     return hashlib.md5(raw.encode()).hexdigest()
 
 
+import json
+
 # ─────────────────────────────────────────────────────────────────
 # Safe dict parser
 # ─────────────────────────────────────────────────────────────────
@@ -62,8 +64,23 @@ def _safe_eval(val: Any) -> Dict[str, Any]:
         return {}
     if isinstance(val, dict):
         return val
+    
+    val_str = str(val)
+    # Try json.loads first (much faster than ast.literal_eval for millions of rows)
     try:
-        result = ast.literal_eval(str(val))
+        # Sometimes Python dict strings use single quotes, json needs double quotes
+        # A quick heuristic to replace single quotes with double quotes for valid JSON
+        if "'" in val_str and '"' not in val_str:
+            clean_str = val_str.replace("'", '"')
+            result = json.loads(clean_str)
+        else:
+            result = json.loads(val_str)
+        return result if isinstance(result, dict) else {}
+    except Exception:
+        pass
+        
+    try:
+        result = ast.literal_eval(val_str)
         return result if isinstance(result, dict) else {}
     except Exception:
         return {}
@@ -96,6 +113,7 @@ def _flatten_col(series: pd.Series, col_name: str) -> pd.DataFrame:
 DICT_COLS = {"agent", "process", "ecs", "data_stream", "elastic",
              "host", "event", "user", "file", "Effective_process"}
 
+MAX_ROWS = 250_000
 
 def _load_and_flatten(path: Path) -> pd.DataFrame:
     logger.info("Loading %s", path)
@@ -103,13 +121,24 @@ def _load_and_flatten(path: Path) -> pd.DataFrame:
 
     ext = path.suffix.lower()
     if ext == ".xlsx":
-        raw = pd.read_excel(path, engine="openpyxl")
+        # Calamine engine is 5-10x faster than openpyxl for massive files
+        raw = pd.read_excel(path, engine="calamine")
     elif ext == ".csv":
         raw = pd.read_csv(path, low_memory=False)
     elif ext == ".parquet":
         raw = pd.read_parquet(path)
     else:
         raise ValueError(f"Unsupported file type: {ext}")
+        
+    if len(raw) > MAX_ROWS:
+        logger.warning(f"File exceeds {MAX_ROWS} rows. Sampling for memory stability.")
+        if "@timestamp" in raw.columns:
+            # Sort and take the most recent logs if timestamp is available at root
+            raw["@timestamp"] = pd.to_datetime(raw["@timestamp"], errors="coerce", utc=True)
+            raw = raw.sort_values("@timestamp").tail(MAX_ROWS).reset_index(drop=True)
+        else:
+            # Otherwise, just randomly sample
+            raw = raw.sample(n=MAX_ROWS, random_state=42).reset_index(drop=True)
 
     logger.info("Read %d rows, %d raw cols in %.1fs", len(raw), len(raw.columns),
                 time.monotonic() - t0)
@@ -127,8 +156,8 @@ def _load_and_flatten(path: Path) -> pd.DataFrame:
 
     df = pd.concat(parts, axis=1)
 
-    # Timestamp
-    if "@timestamp" in df.columns:
+    # Timestamp (ensure it is parsed if it wasn't already in the sampling block)
+    if "@timestamp" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["@timestamp"]):
         df["@timestamp"] = pd.to_datetime(df["@timestamp"], errors="coerce", utc=True)
 
     elapsed = time.monotonic() - t0
