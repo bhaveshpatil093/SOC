@@ -1,20 +1,25 @@
 # ISRO SOC Analytics — Security Analytics Platform
 
-> A production-quality, large-scale security analytics platform built on Python, Streamlit, and Elasticsearch — designed to handle billions of security logs without loading them into memory.
+> A production-quality, large-scale, fully air-gapped security analytics platform built on Python and Streamlit — designed to handle massive volumes of security logs locally using an in-memory vectorized engine and Explainable AI (XAI).
 
 ---
 
 ## Architecture Overview
 
 ```
-app.py                  # Streamlit entry point (Home page)
-pages/                  # Multi-page Streamlit pages
+app.py                  # Streamlit entry point
+pages/                  # Multi-page Streamlit dashboard (Overview, Settings, SOC-GPT, Documentation)
 config/                 # Centralized settings & logging
-core/                   # ES client, query builder, cache manager
-utils/                  # Shared utilities (time, data, charts, sigma)
-models/                 # ML anomaly detection wrappers
-rules/                  # Sigma rule storage
+core/                   # Data extraction, LLM client, and caching logic
+utils/                  # Shared utilities (time, data, charts)
+models/                 # ML anomaly detection (Isolation Forest) & Batch Feature Engineering
 ```
+
+## Core Features
+1. **Air-Gapped & Local Data Engine:** Reads massive log files (CSV, Parquet, XLSX) completely locally using chunking and advanced vectorization (`pandas` + `python-calamine`). The data never leaves the system.
+2. **Explainable AI (XAI):** Uses Unsupervised **Isolation Forest** to catch zero-day threats, paired with **SHAP** (SHapley Additive exPlanations) to explain exactly why an event was flagged as anomalous.
+3. **Deterministic Threat Synthesis:** Identifies malicious payloads using Regex matching (e.g., Base64, IPs) and LOLBin tracking, correlating them with ML scores to assign threat severities (CRITICAL, HIGH, SUSPICIOUS).
+4. **Local SOC-GPT Assistant:** Employs a hardware-accelerated local LLM (Llama 3.2 1B Instruct via `llama-cpp-python` and Metal GPU) to converse with the analyst. It dynamically injects the platform's architectural context and telemetry data to answer complex security queries instantly.
 
 ## Quick Start
 
@@ -28,17 +33,13 @@ source .venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+*(Note for macOS users: `llama-cpp-python` will automatically utilize Metal acceleration if available for the local SOC-GPT model).*
 
-### 3. Configure environment
-```bash
-cp .env.example .env
-# Edit .env with your Elasticsearch credentials
-```
+### 3. Provide Data
+Ensure your telemetry data (e.g., `june_logs.csv` or `data_backup.xlsx`) is placed in the `data/` directory.
 
 ### 4. Run the application
 ```bash
-bash run.sh
-# or directly:
 streamlit run app.py
 ```
 
@@ -46,49 +47,17 @@ streamlit run app.py
 
 | Principle | Implementation |
 |-----------|---------------|
-| **Memory safety** | All analytics use ES aggregations — never full log scans |
-| **Scalability** | Batch processing via `search_after` for exports |
-| **Resilience** | Exponential backoff retry on ES connection failures |
-| **Caching** | `st.cache_data` (in-memory) + `joblib` (disk) for aggregations |
-| **Modularity** | Each page is self-contained; core layer is shared |
-| **Security** | Read-only ES credentials; secrets in `.env` only |
-
-## Environment Variables
-
-See [`.env.example`](.env.example) for all configuration options.
-
-## Pages / Workflow
-
-| Step | Page | Description |
-|------|------|-------------|
-| 0 | **🏠 Home** | Platform overview & architecture diagram |
-| 1 | **📊 Overview** | High-level SOC KPI dashboard — volume, top sources, severity |
-| 2 | **⚙️ Settings** | Configure Elasticsearch connection and cache policies |
-| 3 | **🔌 ES Diagnostics** | Verify cluster health, indices, and aggregations |
-| 4 | **📥 Log Retrieval** | Execute safe, paginated log queries via `search_after` |
-| 5 | **🧹 Data Pipeline** | Clean, normalize, and extract features from retrieved logs |
-| 6 | **📋 Sigma Rules** | Execute Sigma detections locally on the retrieved batch |
-| 7 | **🤖 ML Anomaly** | Flag behavioural outliers using Isolation Forest / LOF |
-| 8 | **🎯 Threat Scoring** | Correlate Sigma & ML findings into unified alert scores |
-| 9 | **🤖 AI Assistant** | Investigate results via a deterministic or LLM-powered conversational agent |
-| 10 | **🔍 Threat Hunter** | (Legacy) Free-form query builder with timeline |
-| 11 | **🚨 Alerts** | (Legacy) Alert correlation & triage |
-
+| **Memory Safety** | CSVs can be streamed via `chunksize` and sampled to handle files much larger than system RAM. |
+| **Air-Gapped Intelligence** | The SOC-GPT is a local quantized model downloaded via HuggingFace Hub, running directly on device hardware. |
+| **Explainability** | SHAP waterfall plots instantly identify the exact feature contributing to high anomaly scores. |
+| **Caching** | `@st.cache_resource` and `@st.cache_data` heavily optimize parsing and ML model training to run instantly on refreshes. |
 
 ## Technology Stack
 
-- **Streamlit** — UI framework
-- **Elasticsearch 9.4.1** — Log storage & aggregation engine
-- **Pandas / NumPy** — Aggregation result processing
-- **Plotly** — Interactive visualisations
-- **Scikit-learn** — Anomaly detection models
-- **pySigma** — Sigma rule engine
-- **Joblib** — Caching & model persistence
-- **Tenacity** — Retry logic with exponential backoff
-
-## Dataset
-
-- **Volume**: ~2.77 billion logs
-- **Period**: June 2026
-- **Access**: Read-only Elasticsearch cluster
-- **Index pattern**: Configurable (default: `security-logs-2026.06.*`)
+- **Streamlit** — Interactive UI framework
+- **Pandas & python-calamine** — Fast vectorized data extraction and flattening
+- **Scikit-learn** — Isolation Forest anomaly detection
+- **SHAP & Matplotlib** — ML model explainability & visualization
+- **Plotly** — Interactive dashboard graphs
+- **Llama-cpp-python** — Local GPU-accelerated LLM runtime for SOC-GPT
+- **Joblib** — ML model persistence
