@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { name: "Behavior", href: "/behavior", icon: Activity },
   { name: "Anomalies", href: "/anomalies", icon: AlertTriangle },
   { name: "Threats", href: "/threats", icon: ShieldAlert },
+  { name: "Sigma", href: "/sigma", icon: Search },
   { name: "Investigations", href: "/investigations", icon: Search },
   { name: "Entities", href: "/entities", icon: Users },
   { name: "Reports", href: "/reports", icon: FileText },

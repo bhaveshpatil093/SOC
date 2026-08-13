@@ -148,3 +148,22 @@ export async function fetchThreatsEvents() {
   if (!res.ok) throw new Error("Failed to fetch threats events");
   return res.json();
 }
+
+// Sigma Endpoints
+export async function fetchSigmaOverview() {
+  const res = await fetch(`${API_BASE_URL}/sigma/overview`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch sigma overview");
+  return res.json();
+}
+
+export async function fetchSigmaRules() {
+  const res = await fetch(`${API_BASE_URL}/sigma/rules`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch sigma rules");
+  return res.json();
+}
+
+export async function fetchSigmaCoverage() {
+  const res = await fetch(`${API_BASE_URL}/sigma/coverage`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch sigma coverage");
+  return res.json();
+}
