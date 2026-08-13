@@ -29,3 +29,9 @@ export async function fetchEntities() {
   if (!res.ok) throw new Error("Failed to fetch entities");
   return res.json();
 }
+
+export async function fetchDashboardData() {
+  const res = await fetch(`${API_BASE_URL}/analytics/dashboard`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch dashboard data");
+  return res.json();
+}

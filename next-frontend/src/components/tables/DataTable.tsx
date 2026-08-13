@@ -12,7 +12,7 @@ interface Column<T> {
 interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
-  keyExtractor: (item: T) => string | number;
+  keyExtractor: (item: T, index: number) => string | number;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -35,8 +35,8 @@ export function DataTable<T>({ data, columns, keyExtractor, emptyTitle = "No dat
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {data.map((item) => (
-            <tr key={keyExtractor(item)} className="hover:bg-white/5 transition-colors">
+          {data.map((item, index) => (
+            <tr key={keyExtractor(item, index)} className="hover:bg-white/5 transition-colors">
               {columns.map((col, idx) => (
                 <td key={idx} className={`px-6 py-4 whitespace-nowrap ${col.className || ''}`}>
                   {col.cell ? col.cell(item) : (col.accessorKey ? String(item[col.accessorKey]) : null)}
