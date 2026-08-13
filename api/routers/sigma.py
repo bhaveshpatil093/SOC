@@ -6,7 +6,10 @@ from typing import Dict, Any, List
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
 from api.utils.filters import apply_global_filters
+from api.utils.pagination import paginate_dataframe
+from api.utils.cache import cache_response
 from utils.sigma_utils import SigmaUtils, SigmaRuleInfo
+import hashlib
 
 router = APIRouter(prefix="/api/v1/sigma", tags=["sigma"])
 
@@ -81,25 +84,32 @@ def _evaluate_rules_locally(df: pd.DataFrame, rules: List[SigmaRuleInfo]):
     return results
 
 @router.get("/events")
-def get_sigma_events(request: Request):
+def get_sigma_events(request: Request, page: int = 1, limit: int = 50, sort_by: str = "@timestamp", sort_desc: bool = True):
     data = get_analytics_data()
     if "error" in data:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
     sigma_matches = data.get("sigma_matches", pd.DataFrame())
     if sigma_matches.empty:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
     sigma_matches = apply_global_filters(sigma_matches, dict(request.query_params))
         
-    if "@timestamp" in sigma_matches.columns:
-        sigma_matches["@timestamp"] = sigma_matches["@timestamp"].astype(str)
-        
     sigma_matches["threat_score"] = 95.0
     
-    events_list = _safe_records(sigma_matches.head(100))
+    paginated = paginate_dataframe(sigma_matches, page, limit, sort_by, sort_desc)
+    current_df = paginated["data"]
     
-    import hashlib
+    if current_df.empty:
+        paginated["data"] = []
+        return paginated
+        
+    if "@timestamp" in current_df.columns:
+        current_df = current_df.copy()
+        current_df["@timestamp"] = current_df["@timestamp"].astype(str)
+    
+    events_list = _safe_records(current_df)
+    
     for evt in events_list:
         ts = str(evt.get("@timestamp", ""))
         user = str(evt.get("user.name", ""))
@@ -108,9 +118,11 @@ def get_sigma_events(request: Request):
         raw = f"{ts}{user}{host}{rule}"
         evt["_id"] = hashlib.md5(raw.encode()).hexdigest()
         
-    return events_list
+    paginated["data"] = events_list
+    return paginated
 
 @router.get("/overview")
+@cache_response()
 def get_sigma_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -155,7 +167,8 @@ def get_sigma_overview(request: Request):
     }
 
 @router.get("/rules")
-def get_sigma_rules_api():
+@cache_response()
+def get_sigma_rules_api(request: Request):
     def get_sigma_execution_results():
         data = get_analytics_data()
         df_scored = data.get("scored_df", pd.DataFrame())
@@ -213,6 +226,7 @@ def get_sigma_rules_api():
     return results
 
 @router.get("/coverage")
+@cache_response()
 def get_sigma_coverage(request: Request):
     data = get_analytics_data()
     if "error" in data:

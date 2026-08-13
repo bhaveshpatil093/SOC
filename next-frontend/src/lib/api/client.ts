@@ -2,12 +2,18 @@ import { KPIResponse, TimelineDataPoint, AnomalyDistributionItem, EntityResponse
 
 const API_BASE_URL = "http://localhost:8000/api/v1";
 
-function buildUrl(endpoint: string, filters?: Record<string, string>, extraParams?: URLSearchParams) {
+function buildUrl(endpoint: string, filters?: Record<string, string>, extraParams?: URLSearchParams, pagination?: { page: number, limit: number, sortBy?: string, sortDesc?: boolean }) {
   const params = extraParams || new URLSearchParams();
   if (filters) {
     Object.entries(filters).forEach(([key, val]) => {
       if (val) params.append(key, val);
     });
+  }
+  if (pagination) {
+    params.append("page", pagination.page.toString());
+    params.append("limit", pagination.limit.toString());
+    if (pagination.sortBy) params.append("sort_by", pagination.sortBy);
+    if (pagination.sortDesc !== undefined) params.append("sort_desc", pagination.sortDesc.toString());
   }
   const query = params.toString();
   return query ? `${API_BASE_URL}${endpoint}?${query}` : `${API_BASE_URL}${endpoint}`;
@@ -43,8 +49,8 @@ export async function fetchEntities(filters?: Record<string, string>): Promise<E
   return res.json();
 }
 
-export async function fetchRecentEvents(filters?: Record<string, string>): Promise<EventResponse[]> {
-  const res = await fetch(buildUrl("/overview/events/recent", filters), { cache: "no-store" });
+export async function fetchRecentEvents(filters?: Record<string, string>, page = 1, limit = 50, sortBy = "threat_score", sortDesc = true) {
+  const res = await fetch(buildUrl("/overview/events/recent", filters, undefined, { page, limit, sortBy, sortDesc }), { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch events");
   return res.json();
 }
@@ -86,8 +92,8 @@ export async function fetchBehaviorNetwork(filters?: Record<string, string>) {
   return res.json();
 }
 
-export async function fetchBehaviorDeviations(filters?: Record<string, string>) {
-  const res = await fetch(buildUrl("/behavior/deviations", filters), { cache: "no-store" });
+export async function fetchBehaviorDeviations(filters?: Record<string, string>, page = 1, limit = 50, sortBy = "anomaly_score", sortDesc = true) {
+  const res = await fetch(buildUrl("/behavior/deviations", filters, undefined, { page, limit, sortBy, sortDesc }), { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch behavior deviations");
   return res.json();
 }
@@ -123,8 +129,8 @@ export async function fetchAnomaliesEntities(filters?: Record<string, string>) {
   return res.json();
 }
 
-export async function fetchAnomaliesEvents(filters?: Record<string, string>) {
-  const res = await fetch(buildUrl("/anomalies/events", filters), { cache: "no-store" });
+export async function fetchAnomaliesEvents(filters?: Record<string, string>, page = 1, limit = 50, sortBy = "anomaly_score", sortDesc = true) {
+  const res = await fetch(buildUrl("/anomalies/events", filters, undefined, { page, limit, sortBy, sortDesc }), { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch anomalies events");
   return res.json();
 }
@@ -154,8 +160,8 @@ export async function fetchThreatsEntities(filters?: Record<string, string>) {
   return res.json();
 }
 
-export async function fetchThreatsEvents(filters?: Record<string, string>) {
-  const res = await fetch(buildUrl("/threats/feed", filters), { cache: "no-store" });
+export async function fetchThreatsEvents(filters?: Record<string, string>, page = 1, limit = 50, sortBy = "threat_score", sortDesc = true) {
+  const res = await fetch(buildUrl("/threats/feed", filters, undefined, { page, limit, sortBy, sortDesc }), { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch threats events");
   return res.json();
 }

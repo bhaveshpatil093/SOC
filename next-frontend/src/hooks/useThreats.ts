@@ -44,11 +44,11 @@ export function useThreatsEntities() {
   });
 }
 
-export function useThreatsEvents() {
+export function useThreatsEvents(page = 1, limit = 50, sortBy = "threat_score", sortDesc = true) {
   const { filters } = useGlobalFilters();
   return useQuery({
-    queryKey: ["threats-events", filters],
-    queryFn: () => fetchThreatsEvents(filters),
+    queryKey: ["threats-events", filters, page, limit, sortBy, sortDesc],
+    queryFn: () => fetchThreatsEvents(filters, page, limit, sortBy, sortDesc),
     refetchInterval: 30000,
   });
 }

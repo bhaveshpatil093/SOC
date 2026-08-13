@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { 
   useBehaviorOverview, 
   useBehaviorTemporal, 
@@ -32,7 +32,11 @@ export default function BehaviorPage() {
   const { data: hosts, isLoading: hostsLoading } = useBehaviorHosts();
   const { data: processes, isLoading: processesLoading } = useBehaviorProcesses();
   const { data: network, isLoading: networkLoading } = useBehaviorNetwork();
-  const { data: deviations, isLoading: deviationsLoading } = useBehaviorDeviations();
+  
+  const [page, setPage] = useState(1);
+  const { data: deviationsData, isLoading: deviationsLoading } = useBehaviorDeviations(page, 50);
+  const deviations = deviationsData?.data || [];
+  const totalPages = deviationsData?.total_pages || 1;
 
   if (overviewLoading) {
     return (
@@ -165,7 +169,16 @@ export default function BehaviorPage() {
           title="Behavioral Deviations Log" 
           description="Detailed view of ML-identified events that deviate significantly from learned baselines."
         />
-        {deviationsLoading ? <LoadingSkeleton className="h-[400px]" /> : <DataTable data={deviations || []} columns={deviationCols} keyExtractor={(i: BehaviorDeviation, idx: number) => String(i["@timestamp"]) + idx} />}
+        {deviationsLoading ? <LoadingSkeleton className="h-[400px]" /> : (
+          <DataTable 
+            data={deviations} 
+            columns={deviationCols} 
+            keyExtractor={(i: BehaviorDeviation, idx: number) => String(i["@timestamp"]) + idx} 
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        )}
       </Card>
     </div>
   );

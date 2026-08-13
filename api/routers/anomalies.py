@@ -4,12 +4,15 @@ import numpy as np
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
 from api.utils.filters import apply_global_filters
+from api.utils.pagination import paginate_dataframe
+from api.utils.cache import cache_response
 import json
 import hashlib
 
 router = APIRouter(prefix="/api/v1/anomalies", tags=["anomalies"])
 
 @router.get("/overview")
+@cache_response()
 def get_anomalies_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -35,6 +38,7 @@ def get_anomalies_overview(request: Request):
     }
 
 @router.get("/distribution/severity")
+@cache_response()
 def get_severity_distribution(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -50,6 +54,7 @@ def get_severity_distribution(request: Request):
     return _safe_records(summary)
 
 @router.get("/timeline")
+@cache_response()
 def get_anomaly_timeline(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -72,6 +77,7 @@ def get_anomaly_timeline(request: Request):
     return _safe_records(grouped[["timestamp", "count"]])
 
 @router.get("/entities")
+@cache_response()
 def get_top_entities(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -113,30 +119,36 @@ def get_top_entities(request: Request):
     }
 
 @router.get("/events")
-def get_anomaly_events(request: Request):
+def get_anomaly_events(request: Request, page: int = 1, limit: int = 50, sort_by: str = "anomaly_score", sort_desc: bool = True):
     data = get_analytics_data()
     if "error" in data:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
     df = data.get("scored_df", pd.DataFrame())
     df = apply_global_filters(df, dict(request.query_params))
     
     if df.empty or "anomaly_score" not in df.columns:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
-    anomalies_df = df[df["anomaly_score"] > 0].sort_values("anomaly_score", ascending=False).head(250)
+    anomalies_df = df[df["anomaly_score"] > 0]
     
-    if anomalies_df.empty:
-        return []
+    # Paginate
+    paginated = paginate_dataframe(anomalies_df, page, limit, sort_by, sort_desc)
+    current_df = paginated["data"]
+    
+    if current_df.empty:
+        paginated["data"] = []
+        return paginated
         
-    if "@timestamp" in anomalies_df.columns:
-        anomalies_df["@timestamp"] = anomalies_df["@timestamp"].astype(str)
+    if "@timestamp" in current_df.columns:
+        current_df = current_df.copy()
+        current_df["@timestamp"] = current_df["@timestamp"].astype(str)
         
     enriched_records = []
     shap_vals = data.get("shap_values", None)
     shap_feature_names = data.get("shap_feature_names", [])
     
-    for idx, row in anomalies_df.iterrows():
+    for idx, row in current_df.iterrows():
         rec = row.to_dict()
         rec["reasons"] = []
         rec["severity"] = row.get("threat_level", "Medium")
@@ -169,4 +181,6 @@ def get_anomaly_events(request: Request):
         raw = f"{ts}{user}{host}{score}"
         evt["_id"] = hashlib.md5(raw.encode()).hexdigest()
         
-    return _safe_records(enriched_records)
+        
+    paginated["data"] = _safe_records(enriched_records)
+    return paginated

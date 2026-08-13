@@ -3,10 +3,14 @@ import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
 from api.utils.filters import apply_global_filters
+from api.utils.pagination import paginate_dataframe
+from api.utils.cache import cache_response
+import hashlib
 
 router = APIRouter(prefix="/api/v1/threats", tags=["threats"])
 
 @router.get("/overview")
+@cache_response()
 def get_threat_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -37,6 +41,7 @@ def get_threat_overview(request: Request):
     }
 
 @router.get("/distribution")
+@cache_response()
 def get_threat_distribution(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -52,6 +57,7 @@ def get_threat_distribution(request: Request):
     return _safe_records(summary)
 
 @router.get("/timeline")
+@cache_response()
 def get_threat_timeline(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -74,6 +80,7 @@ def get_threat_timeline(request: Request):
     return _safe_records(grouped[["timestamp", "threat_level", "count"]])
 
 @router.get("/entities")
+@cache_response()
 def get_threat_entities(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -106,27 +113,35 @@ def get_threat_entities(request: Request):
     }
 
 @router.get("/feed")
-def get_threat_feed(request: Request):
+def get_threat_feed(request: Request, page: int = 1, limit: int = 50, sort_by: str = "threat_score", sort_desc: bool = True):
     data = get_analytics_data()
     if "error" in data:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
     df = data.get("scored_df", pd.DataFrame())
     df = apply_global_filters(df, dict(request.query_params))
     
     if df.empty or "threat_score" not in df.columns:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
-    threats = df[df["threat_score"] > 0].sort_values("threat_score", ascending=False).head(100)
+    threats = df[df["threat_score"] > 0]
     
-    if not threats.empty:
-        if "@timestamp" in threats.columns:
-            threats["@timestamp"] = threats["@timestamp"].astype(str)
+    # Paginate
+    paginated = paginate_dataframe(threats, page, limit, sort_by, sort_desc)
+    current_df = paginated["data"]
+    
+    if current_df.empty:
+        paginated["data"] = []
+        return paginated
+    
+    if not current_df.empty:
+        if "@timestamp" in current_df.columns:
+            current_df = current_df.copy()
+            current_df["@timestamp"] = current_df["@timestamp"].astype(str)
             
-    events_list = _safe_records(threats)
+    events_list = _safe_records(current_df)
     
     # Add _id for investigation state tracking
-    import hashlib
     for evt in events_list:
         ts = str(evt.get("@timestamp", ""))
         user = str(evt.get("user.name", ""))
@@ -135,4 +150,5 @@ def get_threat_feed(request: Request):
         raw = f"{ts}{user}{host}{score}"
         evt["_id"] = hashlib.md5(raw.encode()).hexdigest()
         
-    return events_list
+    paginated["data"] = events_list
+    return paginated

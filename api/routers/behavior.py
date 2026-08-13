@@ -3,10 +3,13 @@ import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
 from api.utils.filters import apply_global_filters
+from api.utils.pagination import paginate_dataframe
+from api.utils.cache import cache_response
 
 router = APIRouter(prefix="/api/v1/behavior", tags=["behavior"])
 
 @router.get("/overview")
+@cache_response()
 def get_behavior_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -33,6 +36,7 @@ def get_behavior_overview(request: Request):
     }
 
 @router.get("/temporal")
+@cache_response()
 def get_behavior_temporal(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -56,6 +60,7 @@ def get_behavior_temporal(request: Request):
     }
 
 @router.get("/users")
+@cache_response()
 def get_behavior_users(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -77,6 +82,7 @@ def get_behavior_users(request: Request):
     return _safe_records(merged)
 
 @router.get("/hosts")
+@cache_response()
 def get_behavior_hosts(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -98,6 +104,7 @@ def get_behavior_hosts(request: Request):
     return _safe_records(merged)
 
 @router.get("/processes")
+@cache_response()
 def get_behavior_processes(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -114,6 +121,7 @@ def get_behavior_processes(request: Request):
     return _safe_records(proc_counts)
 
 @router.get("/network")
+@cache_response()
 def get_behavior_network(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -129,17 +137,28 @@ def get_behavior_network(request: Request):
     return _safe_records(net)
 
 @router.get("/deviations")
-def get_behavior_deviations(request: Request):
+def get_behavior_deviations(request: Request, page: int = 1, limit: int = 50, sort_by: str = "anomaly_score", sort_desc: bool = True):
     data = get_analytics_data()
     if "error" in data:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
     df = data.get("scored_df", pd.DataFrame())
     df = apply_global_filters(df, dict(request.query_params))
-    if df.empty:
-        return []
+    if df.empty or "anomaly_score" not in df.columns:
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
-    anom_events_df = df[df["anomaly_score"] > 0].sort_values("anomaly_score", ascending=False).head(100)
-    if not anom_events_df.empty and "@timestamp" in anom_events_df.columns:
-        anom_events_df["@timestamp"] = anom_events_df["@timestamp"].astype(str)
-    return _safe_records(anom_events_df)
+    anom_events_df = df[df["anomaly_score"] > 0]
+    
+    paginated = paginate_dataframe(anom_events_df, page, limit, sort_by, sort_desc)
+    current_df = paginated["data"]
+    
+    if current_df.empty:
+        paginated["data"] = []
+        return paginated
+        
+    if "@timestamp" in current_df.columns:
+        current_df = current_df.copy()
+        current_df["@timestamp"] = current_df["@timestamp"].astype(str)
+        
+    paginated["data"] = _safe_records(current_df)
+    return paginated

@@ -30,7 +30,10 @@ export default function ThreatsPage() {
   const { data: distribution, isLoading: distributionLoading } = useThreatsDistribution();
   const { data: timeline, isLoading: timelineLoading } = useThreatsTimeline();
   const { data: entities, isLoading: entitiesLoading } = useThreatsEntities();
-  const { data: events, isLoading: eventsLoading } = useThreatsEvents();
+  const [page, setPage] = useState(1);
+  const { data: eventsData, isLoading: eventsLoading } = useThreatsEvents(page, 50);
+  const events = eventsData?.data || [];
+  const totalPages = eventsData?.total_pages || 1;
 
   const [selectedEvent, setSelectedEvent] = useState<ThreatEvent | null>(null);
 
@@ -169,11 +172,14 @@ export default function ThreatsPage() {
         />
         {eventsLoading ? <LoadingSkeleton className="h-[400px]" /> : (
           <DataTable 
-            data={events || []} 
+            data={events} 
             columns={eventCols} 
             keyExtractor={(i: ThreatEvent, idx: number) => String(i["@timestamp"]) + idx} 
             onRowClick={(row) => setSelectedEvent(row as ThreatEvent)}
             rowClassName="cursor-pointer hover:bg-white/5 transition-colors"
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
           />
         )}
       </Card>

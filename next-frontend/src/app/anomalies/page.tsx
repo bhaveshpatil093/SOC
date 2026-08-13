@@ -35,7 +35,10 @@ export default function AnomaliesPage() {
   const { data: timeline, isLoading: timelineLoading } = useAnomaliesTimeline();
   const { data: heatmap, isLoading: heatmapLoading } = useAnomaliesHeatmap();
   const { data: entities, isLoading: entitiesLoading } = useAnomaliesEntities();
-  const { data: events, isLoading: eventsLoading } = useAnomaliesEvents();
+  const [page, setPage] = useState(1);
+  const { data: eventsData, isLoading: eventsLoading } = useAnomaliesEvents(page, 50);
+  const events = eventsData?.data || [];
+  const totalPages = eventsData?.total_pages || 1;
 
   const [selectedEvent, setSelectedEvent] = useState<AnomalyEvent | null>(null);
 
@@ -194,11 +197,14 @@ export default function AnomaliesPage() {
         />
         {eventsLoading ? <LoadingSkeleton className="h-[400px]" /> : (
           <DataTable 
-            data={events || []} 
+            data={events} 
             columns={eventCols} 
             keyExtractor={(i: AnomalyEvent, idx: number) => String(i["@timestamp"]) + idx} 
             onRowClick={(row) => setSelectedEvent(row as AnomalyEvent)}
             rowClassName="cursor-pointer hover:bg-white/5 transition-colors"
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
           />
         )}
       </Card>

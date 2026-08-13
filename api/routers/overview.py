@@ -3,10 +3,13 @@ import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
 from api.utils.filters import apply_global_filters
+from api.utils.pagination import paginate_dataframe
+from api.utils.cache import cache_response
 
 router = APIRouter(prefix="/api/v1/overview", tags=["overview"])
 
 @router.get("/kpis")
+@cache_response()
 def get_kpis(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -51,6 +54,7 @@ def get_kpis(request: Request):
     }
 
 @router.get("/timeline")
+@cache_response()
 def get_timeline(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -75,6 +79,7 @@ def get_timeline(request: Request):
     return timeline_data
 
 @router.get("/anomalies")
+@cache_response()
 def get_anomaly_distribution(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -90,6 +95,7 @@ def get_anomaly_distribution(request: Request):
     return _safe_records(summary)
 
 @router.get("/entities")
+@cache_response()
 def get_entities(request: Request):
     data = get_analytics_data()
     if "error" in data:
@@ -117,22 +123,30 @@ def get_entities(request: Request):
     }
 
 @router.get("/events/recent")
-def get_recent_events(request: Request):
+def get_recent_events(request: Request, page: int = 1, limit: int = 50, sort_by: str = "threat_score", sort_desc: bool = True):
     data = get_analytics_data()
     if "error" in data:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
     df = data.get("scored_df", pd.DataFrame())
     df = apply_global_filters(df, dict(request.query_params))
     
     if df.empty or "threat_score" not in df.columns:
-        return []
+        return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
-    crit_events_df = df[df["threat_score"] > 0].sort_values("threat_score", ascending=False).head(10)
+    crit_events_df = df[df["threat_score"] > 0]
     
-    if not crit_events_df.empty:
-        if "@timestamp" in crit_events_df.columns:
-            crit_events_df["@timestamp"] = crit_events_df["@timestamp"].astype(str)
-        return _safe_records(crit_events_df)
+    paginated = paginate_dataframe(crit_events_df, page, limit, sort_by, sort_desc)
+    current_df = paginated["data"]
     
-    return []
+    if current_df.empty:
+        paginated["data"] = []
+        return paginated
+    
+    if not current_df.empty:
+        if "@timestamp" in current_df.columns:
+            current_df = current_df.copy()
+            current_df["@timestamp"] = current_df["@timestamp"].astype(str)
+        paginated["data"] = _safe_records(current_df)
+        
+    return paginated

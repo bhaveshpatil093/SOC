@@ -64,11 +64,11 @@ export function useBehaviorNetwork() {
   });
 }
 
-export function useBehaviorDeviations() {
+export function useBehaviorDeviations(page = 1, limit = 50, sortBy = "anomaly_score", sortDesc = true) {
   const { filters } = useGlobalFilters();
   return useQuery({
-    queryKey: ["behavior-deviations", filters],
-    queryFn: () => fetchBehaviorDeviations(filters),
+    queryKey: ["behavior-deviations", filters, page, limit, sortBy, sortDesc],
+    queryFn: () => fetchBehaviorDeviations(filters, page, limit, sortBy, sortDesc),
     refetchInterval: 30000,
   });
 }

@@ -28,7 +28,11 @@ export default function DashboardPage() {
   const { data: timeline, isLoading: timelineLoading } = useTimeline();
   const { data: anomalyDistribution, isLoading: anomalyLoading } = useAnomalies();
   const { data: entities, isLoading: entitiesLoading } = useEntities();
-  const { data: recentCriticalEvents, isLoading: eventsLoading } = useRecentEvents();
+  
+  const [page, setPage] = useState(1);
+  const { data: recentCriticalEventsData, isLoading: eventsLoading } = useRecentEvents(page, 10);
+  const recentCriticalEvents = recentCriticalEventsData?.data || [];
+  const totalPages = recentCriticalEventsData?.total_pages || 1;
 
   const [timelineFilter, setTimelineFilter] = useState("30d");
 
@@ -168,7 +172,14 @@ export default function DashboardPage() {
       <Card>
         <SectionHeader title="Recent Critical Events" description="Top 10 highest-scored anomalies classified as threats." />
         {eventsLoading ? <LoadingSkeleton className="h-[400px]" /> :
-         <DataTable data={recentCriticalEvents || []} columns={eventCols} keyExtractor={(item: EventResponse, idx: number) => String(item["@timestamp"]) + idx} />}
+         <DataTable 
+            data={recentCriticalEvents} 
+            columns={eventCols} 
+            keyExtractor={(item: EventResponse, idx: number) => String(item["@timestamp"]) + idx}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+         />}
       </Card>
     </div>
   );

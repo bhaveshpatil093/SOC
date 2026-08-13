@@ -17,9 +17,23 @@ interface DataTableProps<T> {
   emptyDescription?: string;
   onRowClick?: (item: T) => void;
   rowClassName?: string;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
-export function DataTable<T>({ data, columns, keyExtractor, emptyTitle = "No data available", emptyDescription, onRowClick, rowClassName }: DataTableProps<T>) {
+export function DataTable<T>({ 
+  data, 
+  columns, 
+  keyExtractor, 
+  emptyTitle = "No data available", 
+  emptyDescription, 
+  onRowClick, 
+  rowClassName,
+  page,
+  totalPages,
+  onPageChange
+}: DataTableProps<T>) {
   if (!data || data.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
@@ -52,6 +66,30 @@ export function DataTable<T>({ data, columns, keyExtractor, emptyTitle = "No dat
           ))}
         </tbody>
       </table>
+      
+      {page !== undefined && totalPages !== undefined && onPageChange && totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-black/20">
+          <div className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              className="px-3 py-1 text-sm border border-border rounded-md hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <button 
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= totalPages}
+              className="px-3 py-1 text-sm border border-border rounded-md hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

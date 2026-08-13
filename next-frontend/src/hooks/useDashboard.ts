@@ -46,11 +46,11 @@ export function useEntities() {
   });
 }
 
-export function useRecentEvents() {
+export function useRecentEvents(page = 1, limit = 50, sortBy = "threat_score", sortDesc = true) {
   const { filters } = useGlobalFilters();
   return useQuery({
-    queryKey: ["recentEvents", filters],
-    queryFn: () => fetchRecentEvents(filters),
+    queryKey: ["recentEvents", filters, page, limit, sortBy, sortDesc],
+    queryFn: () => fetchRecentEvents(filters, page, limit, sortBy, sortDesc),
     refetchInterval: 60000,
   });
 }

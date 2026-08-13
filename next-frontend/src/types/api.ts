@@ -44,3 +44,11 @@ export interface EventResponse {
   "event.action": string;
   anomaly_score: number;
 }
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}

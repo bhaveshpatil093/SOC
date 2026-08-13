@@ -50,11 +50,11 @@ export function useAnomaliesEntities() {
   });
 }
 
-export function useAnomaliesEvents() {
+export function useAnomaliesEvents(page = 1, limit = 50, sortBy = "anomaly_score", sortDesc = true) {
   const { filters } = useGlobalFilters();
   return useQuery({
-    queryKey: ["anomalies-events", filters],
-    queryFn: () => fetchAnomaliesEvents(filters),
+    queryKey: ["anomalies-events", filters, page, limit, sortBy, sortDesc],
+    queryFn: () => fetchAnomaliesEvents(filters, page, limit, sortBy, sortDesc),
     refetchInterval: 30000,
   });
 }
