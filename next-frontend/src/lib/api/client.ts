@@ -117,3 +117,34 @@ export async function fetchAnomaliesEvents() {
   if (!res.ok) throw new Error("Failed to fetch anomalies events");
   return res.json();
 }
+
+// Threat Endpoints
+export async function fetchThreatsOverview() {
+  const res = await fetch(`${API_BASE_URL}/threats/overview`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch threats overview");
+  return res.json();
+}
+
+export async function fetchThreatsDistribution() {
+  const res = await fetch(`${API_BASE_URL}/threats/distribution`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch threats distribution");
+  return res.json();
+}
+
+export async function fetchThreatsTimeline() {
+  const res = await fetch(`${API_BASE_URL}/threats/timeline`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch threats timeline");
+  return res.json();
+}
+
+export async function fetchThreatsEntities() {
+  const res = await fetch(`${API_BASE_URL}/threats/entities`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch threats entities");
+  return res.json();
+}
+
+export async function fetchThreatsEvents() {
+  const res = await fetch(`${API_BASE_URL}/threats/events`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch threats events");
+  return res.json();
+}
