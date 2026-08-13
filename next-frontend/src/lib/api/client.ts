@@ -1,4 +1,4 @@
-import { KPIResponse, TimelineDataPoint, AnomalyDistributionItem, EntityResponse, EventResponse } from "../../types/api";
+import { KPIResponse, TimelineDataPoint, AnomalyDistributionItem, EntityResponse } from "../../types/api";
 
 const API_BASE_URL = "http://localhost:8000/api/v1";
 

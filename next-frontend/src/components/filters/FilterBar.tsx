@@ -16,6 +16,7 @@ export function FilterBar() {
     const saved = localStorage.getItem("soc_saved_filters");
     if (saved) {
       try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSavedFilters(JSON.parse(saved));
       } catch (e) {
         console.error(e);

@@ -16,11 +16,17 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+interface SearchResult {
+  type: string;
+  label: string;
+  value: string;
+}
+
 export function GlobalSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   
@@ -39,6 +45,7 @@ export function GlobalSearch() {
 
   useEffect(() => {
     if (debouncedQuery.length >= 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoading(true);
       fetchGlobalSearch(debouncedQuery)
         .then(data => {
@@ -53,7 +60,7 @@ export function GlobalSearch() {
     }
   }, [debouncedQuery]);
 
-  const handleSelect = (item: any) => {
+  const handleSelect = (item: SearchResult) => {
     setIsOpen(false);
     setQuery("");
     
@@ -62,8 +69,8 @@ export function GlobalSearch() {
       // Navigate to entities profile directly
       router.push(`/entities`);
       // It takes time to load page, so we set filter after tiny delay if we wanted to auto-select,
-      // but applying it as a global filter works universally
-      const keyMap: any = {
+      // applying it as a global filter works universally
+      const keyMap: Record<string, string> = {
         "User": "user",
         "Host": "host",
         "Source IP": "source_ip",

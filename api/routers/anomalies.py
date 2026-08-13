@@ -22,7 +22,7 @@ def get_anomalies_overview(request: Request):
     df = apply_global_filters(df, dict(request.query_params))
     
     total = len(df)
-    anomalies = int((df["anomaly_score"] > 0).sum()) if "anomaly_score" in df.columns else 0
+    anomalies = int((df["is_anomaly"] == True).sum()) if "anomaly_score" in df.columns else 0
     anomaly_rate = (anomalies / total * 100) if total > 0 else 0.0
     
     # Calculate unique entities for the filtered dataset
@@ -50,7 +50,7 @@ def get_severity_distribution(request: Request):
     if df.empty or "threat_level" not in df.columns:
         return []
         
-    summary = df[df["anomaly_score"] > 0].groupby("threat_level").size().reset_index(name="count")
+    summary = df[df["is_anomaly"] == True].groupby("threat_level").size().reset_index(name="count")
     return _safe_records(summary)
 
 @router.get("/timeline")
@@ -66,7 +66,7 @@ def get_anomaly_timeline(request: Request):
     if df.empty or "@timestamp" not in df.columns:
         return []
         
-    anoms = df[df["anomaly_score"] > 0].copy()
+    anoms = df[df["is_anomaly"] == True].copy()
     if anoms.empty:
         return []
         
@@ -89,7 +89,7 @@ def get_top_entities(request: Request):
     if df.empty:
         return {"users": [], "hosts": []}
         
-    anoms = df[df["anomaly_score"] > 0]
+    anoms = df[df["is_anomaly"] == True]
     
     top_users = []
     if "user.name" in anoms.columns:
@@ -130,7 +130,7 @@ def get_anomaly_events(request: Request, page: int = 1, limit: int = 50, sort_by
     if df.empty or "anomaly_score" not in df.columns:
         return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
-    anomalies_df = df[df["anomaly_score"] > 0]
+    anomalies_df = df[df["is_anomaly"] == True]
     
     # Paginate
     paginated = paginate_dataframe(anomalies_df, page, limit, sort_by, sort_desc)

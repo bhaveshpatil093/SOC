@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, ServerOff, RefreshCw } from "lucide-react";
+import { ServerOff } from "lucide-react";
 
 // Poll the backend status
 function useBackendStatus() {
@@ -13,7 +13,7 @@ function useBackendStatus() {
         const res = await fetch("http://localhost:8000/api/v1/analytics/status", { cache: "no-store" });
         if (!res.ok) throw new Error("Backend unavailable");
         return res.json();
-      } catch (err) {
+      } catch {
         throw new Error("Backend unavailable");
       }
     },

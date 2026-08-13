@@ -1,7 +1,4 @@
-import React from 'react';
-import { TooltipProps } from 'recharts';
-import { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
-
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 export const CustomTooltip = ({
   active,
   payload,

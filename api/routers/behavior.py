@@ -19,7 +19,7 @@ def get_behavior_overview(request: Request):
     df = apply_global_filters(df, dict(request.query_params))
     
     total = len(df)
-    deviations = int((df["anomaly_score"] > 0).sum()) if "anomaly_score" in df.columns else 0
+    deviations = int((df["is_anomaly"] == True).sum()) if "anomaly_score" in df.columns else 0
     anomaly_rate = (deviations / total * 100) if total > 0 else 0.0
     normal_pct = max(0.0, 100.0 - anomaly_rate)
     
@@ -72,7 +72,7 @@ def get_behavior_users(request: Request):
         return []
         
     user_counts = df.groupby("user.name").size().reset_index(name="count")
-    user_anoms = df[df["anomaly_score"] > 0].groupby("user.name").size().reset_index(name="anomaly_count")
+    user_anoms = df[df["is_anomaly"] == True].groupby("user.name").size().reset_index(name="anomaly_count")
     
     merged = pd.merge(user_counts, user_anoms, on="user.name", how="left")
     merged["anomaly_count"] = merged["anomaly_count"].fillna(0)
@@ -94,7 +94,7 @@ def get_behavior_hosts(request: Request):
         return []
         
     host_counts = df.groupby("host.hostname").size().reset_index(name="count")
-    host_anoms = df[df["anomaly_score"] > 0].groupby("host.hostname").size().reset_index(name="anomaly_count")
+    host_anoms = df[df["is_anomaly"] == True].groupby("host.hostname").size().reset_index(name="anomaly_count")
     
     merged = pd.merge(host_counts, host_anoms, on="host.hostname", how="left")
     merged["anomaly_count"] = merged["anomaly_count"].fillna(0)
@@ -132,7 +132,7 @@ def get_behavior_network(request: Request):
     if df.empty or "source.ip" not in df.columns:
         return []
         
-    net = df[df["anomaly_score"] > 0].groupby("source.ip").size().reset_index(name="count").sort_values("count", ascending=False).head(50)
+    net = df[df["is_anomaly"] == True].groupby("source.ip").size().reset_index(name="count").sort_values("count", ascending=False).head(50)
     net = net.rename(columns={"source.ip": "value"})
     return _safe_records(net)
 
@@ -147,7 +147,7 @@ def get_behavior_deviations(request: Request, page: int = 1, limit: int = 50, so
     if df.empty or "anomaly_score" not in df.columns:
         return {"data": [], "total": 0, "page": page, "limit": limit, "total_pages": 0}
         
-    anom_events_df = df[df["anomaly_score"] > 0]
+    anom_events_df = df[df["is_anomaly"] == True]
     
     paginated = paginate_dataframe(anom_events_df, page, limit, sort_by, sort_desc)
     current_df = paginated["data"]

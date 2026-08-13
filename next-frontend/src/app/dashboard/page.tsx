@@ -25,7 +25,7 @@ const COLORS = {
 };
 
 export default function DashboardPage() {
-  const { data: kpiData, isLoading: kpiLoading, isError: kpiIsError, error: kpiErrorObj, refetch: refetchKpi } = useKPIs();
+  const { data: kpiData, isLoading: kpiLoading, isError: kpiIsError, refetch: refetchKpi } = useKPIs();
   const { data: timeline, isLoading: timelineLoading, isError: timelineIsError, refetch: refetchTimeline } = useTimeline();
   const { data: anomalyDistribution, isLoading: anomalyLoading, isError: anomalyIsError, refetch: refetchAnomaly } = useAnomalies();
   const { data: entities, isLoading: entitiesLoading, isError: entitiesIsError, refetch: refetchEntities } = useEntities();

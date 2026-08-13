@@ -111,7 +111,7 @@ def get_entity_profile(request: Request, name: str, type: str):
         "event_count": len(entity_df),
         "first_seen": str(entity_df["@timestamp"].min()),
         "last_seen": str(entity_df["@timestamp"].max()),
-        "anomaly_count": int((entity_df["anomaly_score"] > 0).sum()),
+        "anomaly_count": int((entity_df["is_anomaly"] == True).sum()),
         "threat_count": int((entity_df["threat_score"] > 0).sum()),
         "related": {}
     }
@@ -153,7 +153,7 @@ def get_entity_profile(request: Request, name: str, type: str):
             profile["related"]["hosts"] = entity_df["host.hostname"].dropna().unique().tolist()
             
     # Inject recent anomalies/threats for this entity
-    anomalies = entity_df[entity_df["anomaly_score"] > 0].sort_values("anomaly_score", ascending=False).head(10)
+    anomalies = entity_df[entity_df["is_anomaly"] == True].sort_values("anomaly_score", ascending=False).head(10)
     threats = entity_df[entity_df["threat_score"] > 0].sort_values("threat_score", ascending=False).head(10)
     
     # Inject _id into these payloads for the Drawer

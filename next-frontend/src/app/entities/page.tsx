@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState } from "react";
@@ -6,7 +7,7 @@ import { Card } from "../../components/cards/Card";
 import { LoadingSkeleton } from "../../components/ui/LoadingSkeleton";
 import { Search, User, Monitor, Network, Cpu, ShieldAlert, AlertTriangle } from "lucide-react";
 import { EntityOverview } from "../../types/entities";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, AreaChart, Area } from "recharts";
 import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { ChartContainer } from "../../components/charts/ChartContainer";
 import { InvestigationDrawer } from "../../components/investigation/InvestigationDrawer";

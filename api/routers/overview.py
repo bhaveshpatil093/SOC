@@ -19,7 +19,7 @@ def get_kpis(request: Request):
     df = apply_global_filters(df, dict(request.query_params))
     
     total_events = len(df)
-    anomalies = int((df["anomaly_score"] > 0).sum()) if "anomaly_score" in df.columns else 0
+    anomalies = int((df["is_anomaly"] == True).sum()) if "anomaly_score" in df.columns else 0
     unique_hosts = int(df["host.hostname"].nunique()) if "host.hostname" in df.columns else 0
     unique_users = int(df["user.name"].nunique()) if "user.name" in df.columns else 0
     
@@ -91,7 +91,7 @@ def get_anomaly_distribution(request: Request):
     if df.empty or "threat_level" not in df.columns:
         return []
         
-    summary = df[df["anomaly_score"] > 0].groupby("threat_level").size().reset_index(name="count")
+    summary = df[df["is_anomaly"] == True].groupby("threat_level").size().reset_index(name="count")
     return _safe_records(summary)
 
 @router.get("/entities")
@@ -107,7 +107,7 @@ def get_entities(request: Request):
     if df.empty:
         return {"topHosts": [], "topUsers": []}
         
-    anoms = df[df["anomaly_score"] > 0]
+    anoms = df[df["is_anomaly"] == True]
     
     top_hosts = []
     if "host.hostname" in anoms.columns:

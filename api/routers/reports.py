@@ -64,7 +64,7 @@ def generate_report_task(report_id: str, request: ReportRequest):
         elif request.report_type == "Anomaly":
             cols = ["@timestamp", "anomaly_score", "threat_level", "user.name", "host.hostname", "event.action"]
             filtered_df = filtered_df[[c for c in cols if c in filtered_df.columns]]
-            filtered_df = filtered_df[filtered_df["anomaly_score"] > 0]
+            filtered_df = filtered_df[filtered_df["is_anomaly"] == True]
         elif request.report_type == "Threat":
             cols = ["@timestamp", "anomaly_score", "threat_level", "user.name", "host.hostname", "mitre_technique"]
             filtered_df = filtered_df[[c for c in cols if c in filtered_df.columns]]
