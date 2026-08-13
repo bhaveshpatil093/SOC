@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, AlertTriangle, ShieldAlert, Activity, Search, Users, FileText, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, ShieldAlert, Activity, Search, Users, FileText, Settings, ChevronLeft, ChevronRight, Target } from "lucide-react";
 import { Tooltip } from "../ui/Tooltip";
 
 const NAV_ITEMS = [
@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { name: "Anomalies", href: "/anomalies", icon: AlertTriangle },
   { name: "Threats", href: "/threats", icon: ShieldAlert },
   { name: "Sigma", href: "/sigma", icon: Search },
-  { name: "Investigations", href: "/investigations", icon: Search },
+  { name: "Investigations", href: "/investigations", icon: Target },
   { name: "Entities", href: "/entities", icon: Users },
   { name: "Reports", href: "/reports", icon: FileText },
 ];

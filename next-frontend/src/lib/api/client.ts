@@ -193,3 +193,24 @@ export async function fetchInvestigationTimeline(host?: string, user?: string) {
   if (!res.ok) throw new Error("Failed to fetch investigation timeline");
   return res.json();
 }
+
+// Entities Endpoints
+export async function fetchEntitiesSearch(query?: string, type?: string) {
+  const params = new URLSearchParams();
+  if (query) params.append("q", query);
+  if (type && type !== "All") params.append("type", type);
+  
+  const res = await fetch(`${API_BASE_URL}/entities/search?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to search entities");
+  return res.json();
+}
+
+export async function fetchEntityProfile(name: string, type: string) {
+  const params = new URLSearchParams();
+  params.append("name", name);
+  params.append("type", type);
+  
+  const res = await fetch(`${API_BASE_URL}/entities/profile?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch entity profile");
+  return res.json();
+}
