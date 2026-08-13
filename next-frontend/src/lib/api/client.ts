@@ -167,3 +167,29 @@ export async function fetchSigmaCoverage() {
   if (!res.ok) throw new Error("Failed to fetch sigma coverage");
   return res.json();
 }
+
+// Investigations Endpoints
+export async function fetchInvestigationStatus(id: string) {
+  const res = await fetch(`${API_BASE_URL}/investigations/${id}/status`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch investigation status");
+  return res.json();
+}
+
+export async function updateInvestigationStatus(id: string, status: string) {
+  const res = await fetch(`${API_BASE_URL}/investigations/${id}/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status })
+  });
+  if (!res.ok) throw new Error("Failed to update investigation status");
+  return res.json();
+}
+
+export async function fetchInvestigationTimeline(host?: string, user?: string) {
+  const params = new URLSearchParams();
+  if (host) params.append("host", host);
+  if (user) params.append("user", user);
+  const res = await fetch(`${API_BASE_URL}/investigations/timeline?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch investigation timeline");
+  return res.json();
+}

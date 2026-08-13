@@ -140,4 +140,16 @@ def get_threats_events():
         
     # Check for MITRE/Sigma
     # For now, local_data_client doesn't inject it, but we make sure the payload is safe
-    return _safe_records(combined)
+    events_list = _safe_records(combined)
+    
+    # Add _id for investigation state tracking
+    import hashlib
+    for evt in events_list:
+        ts = str(evt.get("@timestamp", ""))
+        user = str(evt.get("user.name", ""))
+        host = str(evt.get("host.hostname", ""))
+        score = str(evt.get("threat_score", ""))
+        raw = f"{ts}{user}{host}{score}"
+        evt["_id"] = hashlib.md5(raw.encode()).hexdigest()
+        
+    return events_list

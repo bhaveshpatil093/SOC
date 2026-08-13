@@ -16,75 +16,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip
 } from "recharts";
 import { SectionHeader } from "../../components/layout/SectionHeader";
-import { FileCode, ShieldAlert, Crosshair, Fingerprint, Activity, X } from "lucide-react";
+import { FileCode, ShieldAlert, Crosshair, Fingerprint, Activity } from "lucide-react";
 import { SigmaRuleStat } from "../../types/sigma";
+import { InvestigationDrawer } from "../../components/investigation/InvestigationDrawer";
+import { InvestigationEvent } from "../../types/investigations";
 
-// --- Drawer Component ---
-function SigmaDrawer({ rule, onClose }: { rule: SigmaRuleStat | null, onClose: () => void }) {
-  if (!rule) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-card border-l border-border h-full overflow-y-auto p-6 shadow-2xl animate-in slide-in-from-right duration-300">
-        <button onClick={onClose} className="absolute top-6 right-6 text-muted-foreground hover:text-white">
-          <X className="w-5 h-5" />
-        </button>
-        
-        <h2 className="text-xl font-semibold text-white mb-2">Sigma Rule Details</h2>
-        <div className="flex items-center gap-3 mb-8">
-          <SeverityBadge level={(rule.severity.charAt(0).toUpperCase() + rule.severity.slice(1)) as "Critical" | "High" | "Medium" | "Low" | "Normal"} />
-          <span className="text-sm text-cyan font-mono">{rule.status}</span>
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium text-white mb-1">{rule.title}</h3>
-            <p className="text-sm text-muted-foreground">{rule.description}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-background rounded-lg border border-border">
-              <h3 className="text-xs font-medium text-muted-foreground mb-1">Total Matches</h3>
-              <div className="text-2xl text-white font-mono">{rule.matches.toLocaleString()}</div>
-            </div>
-            <div className="p-4 bg-background rounded-lg border border-border">
-              <h3 className="text-xs font-medium text-muted-foreground mb-1">MITRE Technique</h3>
-              <div className="text-2xl text-cyan font-mono">{rule.mitre_technique || "N/A"}</div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-white mb-3">Affected Entities</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-white/5 rounded border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">Affected Users ({rule.affected_users.length})</div>
-                <div className="text-sm text-white max-h-24 overflow-y-auto">
-                  {rule.affected_users.join(", ") || "None"}
-                </div>
-              </div>
-              <div className="p-3 bg-white/5 rounded border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">Affected Hosts ({rule.affected_hosts.length})</div>
-                <div className="text-sm text-white max-h-24 overflow-y-auto">
-                  {rule.affected_hosts.join(", ") || "None"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-              <FileCode className="w-4 h-4 text-cyan" /> Raw Detection Logic (YAML)
-            </h3>
-            <pre className="p-4 bg-[#0d1117] rounded-lg border border-border text-xs text-green-400 font-mono overflow-x-auto">
-              {rule.raw_yaml}
-            </pre>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Removed SigmaDrawer in favor of InvestigationDrawer
 
 // --- Main Page ---
 export default function SigmaPage() {
@@ -164,7 +101,11 @@ export default function SigmaPage() {
         )}
       </Card>
 
-      <SigmaDrawer rule={selectedRule} onClose={() => setSelectedRule(null)} />
+      <InvestigationDrawer 
+        event={selectedRule ? { ...selectedRule, sigma_rule: selectedRule.title, _id: selectedRule.id, type: "sigma" } as unknown as InvestigationEvent : null} 
+        onClose={() => setSelectedRule(null)} 
+        type="sigma" 
+      />
     </div>
   );
 }

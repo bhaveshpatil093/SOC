@@ -62,10 +62,19 @@ def _evaluate_rules_locally(df: pd.DataFrame, rules: List[SigmaRuleInfo]):
         matched_df = df[mask]
         
         if not matched_df.empty:
+            import hashlib
             for idx, row in matched_df.iterrows():
+                row_dict = row.to_dict()
+                ts = str(row_dict.get("@timestamp", ""))
+                user = str(row_dict.get("user.name", ""))
+                host = str(row_dict.get("host.hostname", ""))
+                rule_id = str(rule.rule_id)
+                raw = f"{ts}{user}{host}{rule_id}"
+                row_dict["_id"] = hashlib.md5(raw.encode()).hexdigest()
+                
                 results.append({
                     "rule": rule,
-                    "event": row.to_dict()
+                    "event": row_dict
                 })
                 
     return results

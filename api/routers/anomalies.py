@@ -173,4 +173,14 @@ def get_anomalies_events():
             
         enriched_records.append(rec)
         
+    # Add _id for investigation state tracking
+    import hashlib
+    for evt in enriched_records:
+        ts = str(evt.get("@timestamp", ""))
+        user = str(evt.get("user.name", ""))
+        host = str(evt.get("host.hostname", ""))
+        score = str(evt.get("anomaly_score", ""))
+        raw = f"{ts}{user}{host}{score}"
+        evt["_id"] = hashlib.md5(raw.encode()).hexdigest()
+        
     return enriched_records

@@ -17,82 +17,15 @@ import { LoadingSkeleton } from "../../components/ui/LoadingSkeleton";
 import { SeverityBadge } from "../../components/ui/Badge";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  AreaChart, Area, ScatterChart, Scatter, ZAxis, Cell
+  AreaChart, Area, ScatterChart, Scatter, ZAxis, Cell, ResponsiveContainer
 } from "recharts";
 import { SectionHeader } from "../../components/layout/SectionHeader";
-import { AlertTriangle, X } from "lucide-react";
-import { AnomalousEntity, AnomalyEvent, AnomalyReason } from "../../types/anomalies";
-
-// --- Drawer Component ---
-function AnomalyDrawer({ event, onClose }: { event: AnomalyEvent | null, onClose: () => void }) {
-  if (!event) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-card border-l border-border h-full overflow-y-auto p-6 shadow-2xl animate-in slide-in-from-right duration-300">
-        <button onClick={onClose} className="absolute top-6 right-6 text-muted-foreground hover:text-white">
-          <X className="w-5 h-5" />
-        </button>
-        
-        <h2 className="text-xl font-semibold text-white mb-2">Anomaly Details</h2>
-        <div className="flex items-center gap-3 mb-8">
-          <SeverityBadge level={event.threat_level === "High Threat" ? "High" : (event.threat_level as "Critical" | "High" | "Medium" | "Low" | "Normal")} />
-          <span className="text-sm text-muted-foreground">{new Date(event["@timestamp"]).toLocaleString()}</span>
-        </div>
-
-        <div className="space-y-6">
-          <div className="p-4 bg-background rounded-lg border border-border">
-            <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-cyan" />
-              AI Explanation (SHAP)
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              The <strong>Isolation Forest</strong> algorithm flagged this event with an anomaly score of <span className="text-cyan font-mono">{(event.anomaly_score * 100).toFixed(1)}</span>. The following features contributed most heavily to this decision:
-            </p>
-            <div className="space-y-3">
-              {event.reasons?.map((r: AnomalyReason, idx: number) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300 font-mono bg-white/5 px-2 py-1 rounded">{r.feature}</span>
-                  <span className="text-sm text-cyan font-mono">+{Math.abs(r.impact).toFixed(2)} impact</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-white mb-3">Event Context</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-white/5 rounded border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">User</div>
-                <div className="text-sm text-white">{event["user.name"] || "N/A"}</div>
-              </div>
-              <div className="p-3 bg-white/5 rounded border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">Host</div>
-                <div className="text-sm text-white">{event["host.hostname"] || "N/A"}</div>
-              </div>
-              <div className="p-3 bg-white/5 rounded border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">Action</div>
-                <div className="text-sm text-white">{event["event.action"] || "N/A"}</div>
-              </div>
-              <div className="p-3 bg-white/5 rounded border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">Process</div>
-                <div className="text-sm text-white">{event["process.name"] || "N/A"}</div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-white mb-3">Raw Payload</h3>
-            <pre className="p-4 bg-[#0d1117] rounded-lg border border-border text-xs text-green-400 font-mono overflow-x-auto">
-              {JSON.stringify(event, null, 2)}
-            </pre>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { SigmaRuleStat } from "../../types/sigma";
+import { AlertTriangle } from "lucide-react";
+import { InvestigationDrawer } from "../../components/investigation/InvestigationDrawer";
+import { InvestigationEvent } from "../../types/investigations";
+import { AnomalousEntity, AnomalyEvent } from "../../types/anomalies";
+// Removed AnomalyDrawer
 
 // --- Main Page ---
 export default function AnomaliesPage() {
@@ -272,7 +205,7 @@ export default function AnomaliesPage() {
         )}
       </Card>
 
-      <AnomalyDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <InvestigationDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} type="anomaly" />
     </div>
   );
 }
