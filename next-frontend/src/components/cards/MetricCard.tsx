@@ -17,8 +17,8 @@ export function MetricCard({ title, value, trend, trendLabel = "vs last month", 
   const isNeutral = trend === 0;
 
   return (
-    <Card className={className} glow>
-      <div className="flex items-start justify-between mb-4">
+    <Card className={className}>
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
         {icon && <div className="text-muted-foreground p-2 bg-black/20 rounded-lg">{icon}</div>}
       </div>

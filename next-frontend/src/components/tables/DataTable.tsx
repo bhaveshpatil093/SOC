@@ -74,8 +74,15 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full text-sm text-left">
+    <div className="w-full relative">
+      {/* Visual hint for horizontal scroll on mobile */}
+      <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-card to-transparent pointer-events-none md:hidden z-10" />
+      <div 
+        className="w-full overflow-x-auto rounded-xl border border-border bg-card custom-scrollbar"
+        tabIndex={0}
+        aria-label="Data Table, use left and right arrow keys to scroll horizontally"
+      >
+        <table className="w-full text-sm text-left">
         <thead className="text-xs uppercase text-muted-foreground bg-black/20 border-b border-border">
           <tr>
             {columns.map((col, idx) => (
@@ -125,6 +132,7 @@ export function DataTable<T>({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

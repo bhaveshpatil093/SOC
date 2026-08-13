@@ -104,7 +104,7 @@ export default function ThreatsPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Top Row KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
         <MetricCard title="Critical Threats" value={overview?.criticalThreats.toLocaleString() || "0"} icon={<ShieldAlert className="text-red-500" />} trend={0} />
         <MetricCard title="High Threats" value={overview?.highThreats.toLocaleString() || "0"} icon={<Shield className="text-orange-500" />} trend={0} />
         <MetricCard title="Medium Threats" value={overview?.mediumThreats.toLocaleString() || "0"} icon={<ShieldCheck className="text-yellow-500" />} trend={0} />

@@ -70,20 +70,17 @@
 @layer base {
   body {
     color: hsl(var(--foreground));
-    background: radial-gradient(circle at top right, rgba(21, 134, 255, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at bottom left, rgba(21, 255, 171, 0.03) 0%, transparent 40%);
     background-color: hsl(var(--background));
-    background-attachment: fixed;
+  }
+
+  /* Global focus styles for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
-  .glow-primary {
-    box-shadow: 0 0 15px -3px rgba(21, 134, 255, 0.4);
-  }
-  .glow-accent {
-    box-shadow: 0 0 15px -3px rgba(21, 255, 171, 0.4);
-  }
   .glass-panel {
     background-color: hsla(var(--card) / 0.6);
     backdrop-filter: blur(12px);

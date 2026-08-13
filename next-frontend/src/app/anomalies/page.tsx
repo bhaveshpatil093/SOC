@@ -101,7 +101,7 @@ export default function AnomaliesPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Top Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <MetricCard title="Total Anomalies" value={overview?.totalAnomalies.toLocaleString() || "0"} icon={<AlertTriangle className="text-yellow-500" />} trend={0} />
         
         <Card className="flex flex-col">

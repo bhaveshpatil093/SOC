@@ -96,7 +96,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <MetricCard title="Total Events" value={(kpis.totalEvents/1000000).toFixed(1) + "M"} icon={<FileText />} trend={0} />
         <MetricCard title="Events Analyzed" value={(kpis.eventsAnalyzed/1000000).toFixed(1) + "M"} icon={<Activity />} trend={0} />
         <MetricCard title="Anomalies" value={kpis.anomaliesDetected.toLocaleString()} icon={<AlertTriangle />} trend={5} trendLabel="vs last week" />
@@ -144,7 +144,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        <Card className="flex flex-col items-center justify-center text-center p-8 glow-primary">
+        <Card className="flex flex-col items-center justify-center text-center p-8">
           <h3 className="text-lg font-medium text-white mb-6">Overall Security Risk</h3>
           <RiskScore score={riskScore.score} size={180} strokeWidth={14} />
           <div className="mt-8">

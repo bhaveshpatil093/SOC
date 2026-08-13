@@ -3,9 +3,10 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, AlertTriangle, ShieldAlert, Activity, Search, Users, FileText, Settings, ChevronLeft, ChevronRight, Target } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, ShieldAlert, Activity, Search, Users, FileText, Settings, ChevronLeft, ChevronRight, Target, X } from "lucide-react";
 import { Tooltip } from "../ui/Tooltip";
 import { BackendStatus } from "./BackendStatus";
+import { useMobileMenu } from "../providers/MobileMenuProvider";
 
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -21,11 +22,25 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isOpen: isMobileOpen, setIsOpen: setIsMobileOpen } = useMobileMenu();
 
   return (
-    <aside className={`flex-shrink-0 bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? "w-[72px]" : "w-64"}`}>
-      <div className="h-16 flex items-center justify-between px-4 border-b border-border">
-        {!isCollapsed && (
+    <>
+      {/* Mobile Overlay Backdrop */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <aside className={`fixed md:relative inset-y-0 left-0 z-50 flex-shrink-0 bg-card border-r border-border flex flex-col transition-all duration-300 ease-in-out 
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} 
+        ${isCollapsed ? "w-[72px]" : "w-64"}
+      `}>
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border">
+          {!isCollapsed && (
           <div className="overflow-hidden whitespace-nowrap">
             <h1 className="text-xl font-semibold tracking-wider text-white">ISRO<span className="text-accent">.</span>SOC</h1>
           </div>
@@ -37,12 +52,22 @@ export function Sidebar() {
              </div>
           </div>
         )}
-        <button 
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className={`p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/5 transition-colors ${isCollapsed ? 'hidden' : 'block'}`}
-        >
-          <ChevronLeft size={18} />
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className={`hidden md:block p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/5 transition-colors ${isCollapsed ? 'hidden' : ''}`}
+            aria-label="Collapse Sidebar"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button 
+            onClick={() => setIsMobileOpen(false)}
+            className="md:hidden p-1.5 rounded-md text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+            aria-label="Close Menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
       
       {isCollapsed && (
@@ -63,6 +88,7 @@ export function Sidebar() {
             const content = (
               <Link 
                 href={item.href} 
+                onClick={() => setIsMobileOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors ${
                   isActive 
                     ? 'bg-primary/10 text-primary font-medium border border-primary/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]' 
@@ -95,7 +121,7 @@ export function Sidebar() {
             </Link>
           </Tooltip>
         ) : (
-          <Link href="/settings" className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname.startsWith('/settings') ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
+          <Link href="/settings" onClick={() => setIsMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname.startsWith('/settings') ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}>
             <Settings size={18} />
             <span>Settings</span>
           </Link>
@@ -108,5 +134,6 @@ export function Sidebar() {
         </div>
       )}
     </aside>
+    </>
   );
 }

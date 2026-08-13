@@ -3,13 +3,15 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { GlobalSearch } from "../filters/GlobalSearch";
-import { Bell, Database, User } from "lucide-react";
+import { Bell, Database, User, Menu } from "lucide-react";
 import { useHealth } from "../../hooks/useDashboard";
+import { useMobileMenu } from "../providers/MobileMenuProvider";
 
 export function TopBar() {
   const pathname = usePathname();
   const { data: health } = useHealth();
   const status = health?.status || "offline";
+  const { toggle } = useMobileMenu();
 
   const pathParts = pathname.split("/").filter(Boolean);
   const pageTitle = pathParts.length > 0 
@@ -18,8 +20,15 @@ export function TopBar() {
 
   return (
     <header className="h-16 flex-shrink-0 border-b border-border glass-panel flex items-center justify-between px-6 z-10 sticky top-0">
-      <div className="flex items-center gap-6">
-        <h2 className="text-lg font-semibold tracking-tight text-white">{pageTitle}</h2>
+      <div className="flex items-center gap-4">
+        <button 
+          onClick={toggle} 
+          className="md:hidden p-2 text-muted-foreground hover:text-white transition-colors"
+          aria-label="Toggle Menu"
+        >
+          <Menu size={20} />
+        </button>
+        <h2 className="text-lg font-semibold tracking-tight text-white hidden sm:block">{pageTitle}</h2>
         <div className="hidden md:block w-72">
           <GlobalSearch />
         </div>

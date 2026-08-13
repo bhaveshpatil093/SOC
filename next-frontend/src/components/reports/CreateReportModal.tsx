@@ -41,7 +41,7 @@ export function CreateReportModal({ onClose, onSubmit, isLoading }: Props) {
             <DownloadCloud className="w-5 h-5 text-blue-400" />
             Generate New Report
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors">
+          <button onClick={onClose} aria-label="Close form" className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>

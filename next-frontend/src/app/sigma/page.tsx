@@ -69,7 +69,7 @@ export default function SigmaPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Top Row KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
         <MetricCard title="Rules Evaluated" value={overview?.totalRulesEvaluated.toLocaleString() || "0"} icon={<FileCode />} trend={0} />
         <MetricCard title="Rules Triggered" value={overview?.rulesTriggered.toLocaleString() || "0"} icon={<Crosshair className="text-cyan" />} trend={0} />
         <MetricCard title="Unique Detections" value={overview?.uniqueDetections.toLocaleString() || "0"} icon={<Fingerprint className="text-purple-500" />} trend={0} />

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Activity, FileText, Globe, Key, CheckCircle, Clock, FileCode } from "lucide-react";
 import { InvestigationEvent } from "../../types/investigations";
 import { useInvestigationStatus, useUpdateInvestigationStatus, useInvestigationTimeline } from "../../hooks/useInvestigations";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { SeverityBadge } from "../ui/Badge";
 import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 
@@ -20,6 +21,8 @@ export function InvestigationDrawer({ event, onClose, type }: InvestigationDrawe
   const host = event?.["host.hostname"];
   const user = event?.["user.name"];
   const { data: timeline, isLoading: timelineLoading } = useInvestigationTimeline(host, user);
+
+  const trapRef = useFocusTrap(!!event, onClose);
 
   if (!event) return null;
 
@@ -44,17 +47,17 @@ export function InvestigationDrawer({ event, onClose, type }: InvestigationDrawe
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-3xl bg-card border-l border-border h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+      <div ref={trapRef} className="relative w-full max-w-3xl bg-card border-l border-border h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col" role="dialog" aria-modal="true" aria-labelledby="investigation-title">
         
         {/* Header Section */}
         <div className="p-6 border-b border-border bg-background">
-          <button onClick={onClose} className="absolute top-6 right-6 text-muted-foreground hover:text-white">
+          <button onClick={onClose} aria-label="Close drawer" className="absolute top-6 right-6 text-muted-foreground hover:text-white">
             <X className="w-5 h-5" />
           </button>
           
           <div className="flex items-start justify-between mb-4 pr-8">
             <div>
-              <h2 className="text-xl font-semibold text-white mb-2">{title}</h2>
+              <h2 id="investigation-title" className="text-xl font-semibold text-white mb-2">{title}</h2>
               <div className="flex items-center gap-3">
                 <SeverityBadge level={severity as "Critical" | "High" | "Medium" | "Low" | "Normal"} />
                 <span className="text-sm text-muted-foreground font-mono">
