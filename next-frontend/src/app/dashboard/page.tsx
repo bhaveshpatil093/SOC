@@ -10,6 +10,7 @@ import { DataTable } from "../../components/tables/DataTable";
 import { LoadingSkeleton } from "../../components/ui/LoadingSkeleton";
 import { SeverityBadge } from "../../components/ui/Badge";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, PieChart, Pie, Cell, Legend } from "recharts";
+import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { Filter } from "../../components/layout/Filter";
 import { SectionHeader } from "../../components/layout/SectionHeader";
 import { Activity, AlertTriangle, ShieldAlert, Users, Server, FileText } from "lucide-react";
@@ -96,36 +97,26 @@ export default function DashboardPage() {
             actions={<Filter options={[{label: "24h", value: "24h"}, {label: "7d", value: "7d"}, {label: "30d", value: "30d"}, {label: "June", value: "june"}]} value={timelineFilter} onChange={setTimelineFilter} />}
           />
           <div className="flex-1 mt-4">
-            {timelineLoading ? (
-              <LoadingSkeleton className="h-[300px]" />
-            ) : (timeline && timeline.length > 0) ? (
-              <ChartContainer height={300}>
-                <AreaChart data={timeline} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1586FF" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#1586FF" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorAnomalies" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#15FFAB" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#15FFAB" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="timestamp" stroke="#94A3B8" fontSize={12} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} />
-                  <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => (val as number) > 1000 ? ((val as number)/1000).toFixed(1)+'k' : val} />
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }}
-                    itemStyle={{ color: '#E2E8F0' }}
-                    labelStyle={{ color: '#94A3B8', marginBottom: '4px' }}
-                  />
-                  <Area type="monotone" dataKey="events" stroke="#1586FF" fillOpacity={1} fill="url(#colorEvents)" />
-                  <Area type="monotone" dataKey="anomalies" stroke="#15FFAB" fillOpacity={1} fill="url(#colorAnomalies)" />
-                </AreaChart>
-              </ChartContainer>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">No timeline data available</div>
-            )}
+            <ChartContainer height={300} isLoading={timelineLoading} isEmpty={!timeline || timeline.length === 0} emptyMessage="No timeline data available">
+              <AreaChart data={timeline} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1586FF" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#1586FF" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorAnomalies" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#15FFAB" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#15FFAB" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="timestamp" stroke="#94A3B8" fontSize={12} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} />
+                <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => (val as number) > 1000 ? ((val as number)/1000).toFixed(1)+'k' : val} />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="events" stroke="#1586FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
+                <Area type="monotone" dataKey="anomalies" stroke="#15FFAB" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomalies)" />
+              </AreaChart>
+            </ChartContainer>
           </div>
         </Card>
 
@@ -161,21 +152,15 @@ export default function DashboardPage() {
         <Card className="flex flex-col">
           <h3 className="text-md font-medium text-white mb-4">Anomaly Distribution</h3>
           <div className="flex-1 min-h-[250px]">
-            {anomalyLoading ? (
-              <LoadingSkeleton className="h-full" />
-            ) : pieData.length > 0 ? (
-              <ChartContainer height={250}>
-                <PieChart>
-                  <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
-                    {pieData.map((entry: {name: string, color: string}, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                  </Pie>
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed border-border rounded-lg">No distribution data</div>
-            )}
+            <ChartContainer height={250} isLoading={anomalyLoading} isEmpty={!pieData || pieData.length === 0} emptyMessage="No distribution data">
+              <PieChart>
+                <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
+                  {pieData.map((entry: {name: string, color: string}, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
+              </PieChart>
+            </ChartContainer>
           </div>
         </Card>
       </div>

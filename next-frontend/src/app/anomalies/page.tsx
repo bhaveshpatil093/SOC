@@ -19,6 +19,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   AreaChart, Area, ScatterChart, Scatter, ZAxis, Cell, ResponsiveContainer
 } from "recharts";
+import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { SectionHeader } from "../../components/layout/SectionHeader";
 import { SigmaRuleStat } from "../../types/sigma";
 import { AlertTriangle } from "lucide-react";
@@ -88,12 +89,12 @@ export default function AnomaliesPage() {
         <Card className="flex flex-col">
           <SectionHeader title="Score Distribution" />
           <div className="flex-1 mt-4">
-            <ChartContainer height={120}>
+            <ChartContainer height={120} isLoading={overviewLoading} isEmpty={!overview?.distribution || overview.distribution.length === 0} emptyMessage="No score data">
               <BarChart data={overview?.distribution || []}>
                 <XAxis dataKey="range" hide />
                 <YAxis hide />
-                <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
-                <Bar dataKey="count" fill="#52A4EF" radius={[2, 2, 0, 0]} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                <Bar dataKey="count" fill="#207ED5" radius={[2, 2, 0, 0]} activeBar={{ fill: '#FFFFFF' }} />
               </BarChart>
             </ChartContainer>
           </div>
@@ -121,45 +122,42 @@ export default function AnomaliesPage() {
         <Card className="flex flex-col">
           <SectionHeader title="Anomaly Timeline" />
           <div className="flex-1 mt-4">
-            {timelineLoading ? <LoadingSkeleton className="h-[250px]" /> : (
-              <ChartContainer height={250}>
-                <AreaChart data={timeline || []}>
-                  <defs>
-                    <linearGradient id="colorAnom" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={v => `${v}:00`} />
-                  <YAxis stroke="#94A3B8" fontSize={12} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="count" stroke="#f97316" fillOpacity={1} fill="url(#colorAnom)" />
-                </AreaChart>
-              </ChartContainer>
-            )}
+            <ChartContainer height={250} isLoading={timelineLoading} isEmpty={!timeline || timeline.length === 0} emptyMessage="No timeline data">
+              <AreaChart data={timeline || []}>
+                <defs>
+                  <linearGradient id="colorAnom" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={v => `${v}:00`} />
+                <YAxis stroke="#94A3B8" fontSize={12} />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="count" stroke="#f97316" strokeWidth={2} fillOpacity={1} fill="url(#colorAnom)" />
+              </AreaChart>
+            </ChartContainer>
           </div>
         </Card>
 
         <Card className="flex flex-col">
           <SectionHeader title="Hour × Severity Heatmap" />
           <div className="flex-1 mt-4">
-            {heatmapLoading ? <LoadingSkeleton className="h-[250px]" /> : (
-              <ChartContainer height={250}>
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis type="number" dataKey="x" name="Hour" tickFormatter={v => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" />
-                  <YAxis type="number" dataKey="y" name="Severity Index" tickFormatter={v => severityOrder[v]} domain={[1, 5]} stroke="#94A3B8" width={80} />
-                  <ZAxis type="number" dataKey="z" range={[20, 400]} name="Count" />
-                  <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
-                  <Scatter name="Anomalies" data={heatmapData}>
-                    {heatmapData.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.y >= 4 ? "#ef4444" : entry.y === 3 ? "#f97316" : "#52A4EF"} opacity={0.8} />
-                    ))}
-                  </Scatter>
-                </ScatterChart>
-              </ChartContainer>
-            )}
+            <ChartContainer height={250} isLoading={heatmapLoading} isEmpty={!heatmapData || heatmapData.length === 0} emptyMessage="No heatmap data">
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis type="number" dataKey="x" name="Hour" tickFormatter={v => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" />
+                <YAxis type="number" dataKey="y" name="Severity" tickFormatter={v => severityOrder[v]} domain={[1, 5]} stroke="#94A3B8" width={80} />
+                <ZAxis type="number" dataKey="z" range={[20, 800]} name="Count" />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+                <Scatter name="Anomalies" data={heatmapData}>
+                  {heatmapData.map((entry: any, index: number) => {
+                    const color = entry.y >= 4 ? "#ef4444" : entry.y === 3 ? "#f97316" : entry.y === 2 ? "#facc15" : "#52A4EF";
+                    return <Cell key={`cell-${index}`} fill={color} opacity={0.7} />;
+                  })}
+                </Scatter>
+              </ScatterChart>
+            </ChartContainer>
           </div>
         </Card>
       </div>

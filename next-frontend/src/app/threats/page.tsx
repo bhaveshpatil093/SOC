@@ -18,6 +18,7 @@ import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from "recharts";
+import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { SectionHeader } from "../../components/layout/SectionHeader";
 import { ShieldAlert, Shield, ShieldCheck, Server, Users } from "lucide-react";
 import { ThreatEntity, ThreatEvent } from "../../types/threats";
@@ -97,17 +98,23 @@ export default function ThreatsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="flex flex-col">
           <SectionHeader title="Threat Risk Distribution" />
-          <div className="flex-1 mt-4 min-h-[250px]">
-            {distributionLoading ? <LoadingSkeleton className="h-full" /> : (
-              <ChartContainer height={250}>
-                <PieChart>
-                  <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
-                    {pieData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                  </Pie>
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
-                </PieChart>
-              </ChartContainer>
+          <div className="flex-1 mt-4 min-h-[250px] relative">
+            <ChartContainer height={250} isLoading={distributionLoading} isEmpty={!pieData || pieData.length === 0} emptyMessage="No distribution data">
+              <PieChart>
+                <Pie data={pieData} innerRadius={65} outerRadius={85} paddingAngle={4} dataKey="value" stroke="none">
+                  {pieData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
+              </PieChart>
+            </ChartContainer>
+            {(!distributionLoading && pieData.length > 0) && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
+                <div className="text-center">
+                  <div className="text-3xl font-mono text-white font-bold">{pieData.reduce((acc: number, curr: any) => acc + curr.value, 0)}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Threats</div>
+                </div>
+              </div>
             )}
           </div>
         </Card>
@@ -115,19 +122,17 @@ export default function ThreatsPage() {
         <Card className="flex flex-col lg:col-span-2">
           <SectionHeader title="Threat Timeline" />
           <div className="flex-1 mt-4">
-            {timelineLoading ? <LoadingSkeleton className="h-[250px]" /> : (
-              <ChartContainer height={250}>
-                <BarChart data={timeline || []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={v => `${v}:00`} />
-                  <YAxis stroke="#94A3B8" fontSize={12} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Bar dataKey="Suspicious" stackId="a" fill="#facc15" />
-                  <Bar dataKey="High Threat" stackId="a" fill="#f97316" />
-                  <Bar dataKey="Critical" stackId="a" fill="#ef4444" />
-                </BarChart>
-              </ChartContainer>
-            )}
+            <ChartContainer height={250} isLoading={timelineLoading} isEmpty={!timeline || timeline.length === 0} emptyMessage="No timeline data">
+              <BarChart data={timeline || []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={v => `${v}:00`} axisLine={false} tickLine={false} />
+                <YAxis stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                <Bar dataKey="Suspicious" stackId="a" fill="#facc15" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="High Threat" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="Critical" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
           </div>
         </Card>
       </div>

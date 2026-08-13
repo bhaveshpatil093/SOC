@@ -6,7 +6,9 @@ import { Card } from "../../components/cards/Card";
 import { LoadingSkeleton } from "../../components/ui/LoadingSkeleton";
 import { Search, User, Monitor, Network, Cpu, ShieldAlert, AlertTriangle } from "lucide-react";
 import { EntityOverview } from "../../types/entities";
-import { BarChart, Bar, XAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { CustomTooltip } from "../../components/charts/CustomTooltip";
+import { ChartContainer } from "../../components/charts/ChartContainer";
 import { InvestigationDrawer } from "../../components/investigation/InvestigationDrawer";
 import { DataTable } from "../../components/tables/DataTable";
 import { InvestigationEvent } from "../../types/investigations";
@@ -78,14 +80,15 @@ export default function EntitiesPage() {
             <Card className="p-4">
               <h3 className="text-sm font-medium text-white mb-4">Login Activity Distribution</h3>
               <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer height={250} isLoading={profileLoading} isEmpty={!profile.related.login_hours || profile.related.login_hours.length === 0} emptyMessage="No login data">
                   <BarChart data={profile.related.login_hours}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={(h) => `${h}:00`} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
-                    <Bar dataKey="count" fill="#52A4EF" radius={[4, 4, 0, 0]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={(h) => `${h}:00`} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                    <Bar dataKey="count" fill="#52A4EF" radius={[4, 4, 0, 0]} activeBar={{ fill: '#FFFFFF' }} />
                   </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
             </Card>
           )}
@@ -94,14 +97,21 @@ export default function EntitiesPage() {
             <Card className="p-4">
               <h3 className="text-sm font-medium text-white mb-4">Activity Volume (Timeline)</h3>
               <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer height={250} isLoading={profileLoading} isEmpty={!profile.related.activity_timeline || profile.related.activity_timeline.length === 0} emptyMessage="No timeline data">
                   <AreaChart data={profile.related.activity_timeline}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} />
-                    <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
-                    <Area type="monotone" dataKey="count" stroke="#1586FF" fill="rgba(21, 134, 255, 0.2)" />
+                    <defs>
+                      <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1586FF" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#1586FF" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="date" stroke="#94A3B8" fontSize={12} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} axisLine={false} tickLine={false} />
+                    <YAxis stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
+                    <RechartsTooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="count" stroke="#1586FF" strokeWidth={2} fill="url(#colorActivity)" />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
             </Card>
           )}

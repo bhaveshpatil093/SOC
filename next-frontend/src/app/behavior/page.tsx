@@ -20,6 +20,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ScatterChart, Scatter, ZAxis
 } from "recharts";
+import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { SectionHeader } from "../../components/layout/SectionHeader";
 import { Activity, ShieldAlert, Users, Server } from "lucide-react";
 import { BehaviorUser, BehaviorHost, BehaviorProcess, BehaviorNetwork, BehaviorDeviation } from "../../types/behavior";
@@ -105,35 +106,31 @@ export default function BehaviorPage() {
         <Card className="flex flex-col">
           <SectionHeader title="Activity by Hour (24h Heatmap)" />
           <div className="flex-1 mt-4">
-            {temporalLoading ? <LoadingSkeleton className="h-[250px]" /> : scatterData.length > 0 ? (
-              <ChartContainer height={250}>
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis type="number" dataKey="x" name="Hour" tickFormatter={(v) => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" />
-                  <YAxis type="number" dataKey="y" name="Activity" hide domain={[0, 2]} />
-                  <ZAxis type="number" dataKey="z" range={[50, 400]} name="Events" />
-                  <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Scatter name="Activity" data={scatterData} fill="#52A4EF" opacity={0.8} />
-                </ScatterChart>
-              </ChartContainer>
-            ) : <div className="h-[250px] flex items-center justify-center text-muted-foreground">No temporal data</div>}
+            <ChartContainer height={250} isLoading={temporalLoading} isEmpty={!scatterData || scatterData.length === 0} emptyMessage="No temporal data">
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis type="number" dataKey="x" name="Hour" tickFormatter={(v) => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" axisLine={false} tickLine={false} />
+                <YAxis type="number" dataKey="y" name="Activity" hide domain={[0, 2]} />
+                <ZAxis type="number" dataKey="z" range={[50, 600]} name="Events" />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} />
+                <Scatter name="Activity Volume" data={scatterData} fill="#1586FF" opacity={0.7} />
+              </ScatterChart>
+            </ChartContainer>
           </div>
         </Card>
 
         <Card className="flex flex-col">
           <SectionHeader title="Activity by Day" />
           <div className="flex-1 mt-4">
-            {temporalLoading ? <LoadingSkeleton className="h-[250px]" /> : temporal?.daily?.length ? (
-              <ChartContainer height={250}>
-                <BarChart data={temporal.daily} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="day_name" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => val > 1000 ? (val/1000).toFixed(1)+'k' : val} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
-                  <Bar dataKey="activity" fill="#15FFAB" radius={[4, 4, 0, 0]} opacity={0.8} />
-                </BarChart>
-              </ChartContainer>
-            ) : <div className="h-[250px] flex items-center justify-center text-muted-foreground">No daily data</div>}
+            <ChartContainer height={250} isLoading={temporalLoading} isEmpty={!temporal?.daily || temporal.daily.length === 0} emptyMessage="No daily data">
+              <BarChart data={temporal?.daily || []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="day_name" stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
+                <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => val > 1000 ? (val/1000).toFixed(1)+'k' : val} axisLine={false} tickLine={false} />
+                <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                <Bar dataKey="activity" fill="#15FFAB" radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ fill: '#FFFFFF', opacity: 1 }} />
+              </BarChart>
+            </ChartContainer>
           </div>
         </Card>
       </div>
