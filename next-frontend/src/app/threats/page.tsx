@@ -1,0 +1,1 @@
+export default function ThreatsPage() { return <main className="p-8"><h1>Threats</h1></main>; }

@@ -1,0 +1,1 @@
+export default function AnomaliesPage() { return <main className="p-8"><h1>Anomalies</h1></main>; }

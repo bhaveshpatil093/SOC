@@ -1,0 +1,1 @@
+export default function InvestigationsPage() { return <main className="p-8"><h1>Investigations</h1></main>; }

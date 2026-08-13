@@ -1,0 +1,1 @@
+export default function EntitiesPage() { return <main className="p-8"><h1>Entities</h1></main>; }

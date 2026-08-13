@@ -1,0 +1,1 @@
+export default function BehaviorPage() { return <main className="p-8"><h1>Behavior</h1></main>; }
