@@ -15,9 +15,11 @@ interface DataTableProps<T> {
   keyExtractor: (item: T, index: number) => string | number;
   emptyTitle?: string;
   emptyDescription?: string;
+  onRowClick?: (item: T) => void;
+  rowClassName?: string;
 }
 
-export function DataTable<T>({ data, columns, keyExtractor, emptyTitle = "No data available", emptyDescription }: DataTableProps<T>) {
+export function DataTable<T>({ data, columns, keyExtractor, emptyTitle = "No data available", emptyDescription, onRowClick, rowClassName }: DataTableProps<T>) {
   if (!data || data.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
@@ -36,7 +38,11 @@ export function DataTable<T>({ data, columns, keyExtractor, emptyTitle = "No dat
         </thead>
         <tbody className="divide-y divide-border">
           {data.map((item, index) => (
-            <tr key={keyExtractor(item, index)} className="hover:bg-white/5 transition-colors">
+            <tr 
+              key={keyExtractor(item, index)} 
+              className={`hover:bg-white/5 transition-colors ${rowClassName || ''} ${onRowClick ? 'cursor-pointer' : ''}`}
+              onClick={onRowClick ? () => onRowClick(item) : undefined}
+            >
               {columns.map((col, idx) => (
                 <td key={idx} className={`px-6 py-4 whitespace-nowrap ${col.className || ''}`}>
                   {col.cell ? col.cell(item) : (col.accessorKey ? String(item[col.accessorKey]) : null)}

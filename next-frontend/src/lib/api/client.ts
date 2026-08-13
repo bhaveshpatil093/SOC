@@ -80,3 +80,40 @@ export async function fetchBehaviorDeviations() {
   if (!res.ok) throw new Error("Failed to fetch behavior deviations");
   return res.json();
 }
+
+// Anomaly Endpoints
+export async function fetchAnomaliesOverview() {
+  const res = await fetch(`${API_BASE_URL}/anomalies/overview`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch anomalies overview");
+  return res.json();
+}
+
+export async function fetchAnomaliesSeverity() {
+  const res = await fetch(`${API_BASE_URL}/anomalies/severity`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch anomalies severity");
+  return res.json();
+}
+
+export async function fetchAnomaliesTimeline() {
+  const res = await fetch(`${API_BASE_URL}/anomalies/timeline`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch anomalies timeline");
+  return res.json();
+}
+
+export async function fetchAnomaliesHeatmap() {
+  const res = await fetch(`${API_BASE_URL}/anomalies/heatmap`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch anomalies heatmap");
+  return res.json();
+}
+
+export async function fetchAnomaliesEntities() {
+  const res = await fetch(`${API_BASE_URL}/anomalies/entities`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch anomalies entities");
+  return res.json();
+}
+
+export async function fetchAnomaliesEvents() {
+  const res = await fetch(`${API_BASE_URL}/anomalies/events`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch anomalies events");
+  return res.json();
+}

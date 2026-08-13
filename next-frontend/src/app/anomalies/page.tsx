@@ -1,1 +1,278 @@
-export default function AnomaliesPage() { return <main className="p-8"><h1>Anomalies</h1></main>; }
+"use client";
+
+import React, { useState } from "react";
+import { 
+  useAnomaliesOverview, 
+  useAnomaliesSeverity, 
+  useAnomaliesTimeline, 
+  useAnomaliesHeatmap, 
+  useAnomaliesEntities, 
+  useAnomaliesEvents 
+} from "../../hooks/useAnomalies";
+import { MetricCard } from "../../components/cards/MetricCard";
+import { Card } from "../../components/cards/Card";
+import { ChartContainer } from "../../components/charts/ChartContainer";
+import { DataTable } from "../../components/tables/DataTable";
+import { LoadingSkeleton } from "../../components/ui/LoadingSkeleton";
+import { SeverityBadge } from "../../components/ui/Badge";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
+  AreaChart, Area, ScatterChart, Scatter, ZAxis, Cell
+} from "recharts";
+import { SectionHeader } from "../../components/layout/SectionHeader";
+import { AlertTriangle, X } from "lucide-react";
+import { AnomalousEntity, AnomalyEvent, AnomalyReason } from "../../types/anomalies";
+
+// --- Drawer Component ---
+function AnomalyDrawer({ event, onClose }: { event: AnomalyEvent | null, onClose: () => void }) {
+  if (!event) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-card border-l border-border h-full overflow-y-auto p-6 shadow-2xl animate-in slide-in-from-right duration-300">
+        <button onClick={onClose} className="absolute top-6 right-6 text-muted-foreground hover:text-white">
+          <X className="w-5 h-5" />
+        </button>
+        
+        <h2 className="text-xl font-semibold text-white mb-2">Anomaly Details</h2>
+        <div className="flex items-center gap-3 mb-8">
+          <SeverityBadge level={event.threat_level === "High Threat" ? "High" : (event.threat_level as "Critical" | "High" | "Medium" | "Low" | "Normal")} />
+          <span className="text-sm text-muted-foreground">{new Date(event["@timestamp"]).toLocaleString()}</span>
+        </div>
+
+        <div className="space-y-6">
+          <div className="p-4 bg-background rounded-lg border border-border">
+            <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-cyan" />
+              AI Explanation (SHAP)
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              The <strong>Isolation Forest</strong> algorithm flagged this event with an anomaly score of <span className="text-cyan font-mono">{(event.anomaly_score * 100).toFixed(1)}</span>. The following features contributed most heavily to this decision:
+            </p>
+            <div className="space-y-3">
+              {event.reasons?.map((r: AnomalyReason, idx: number) => (
+                <div key={idx} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-300 font-mono bg-white/5 px-2 py-1 rounded">{r.feature}</span>
+                  <span className="text-sm text-cyan font-mono">+{Math.abs(r.impact).toFixed(2)} impact</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-white mb-3">Event Context</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-white/5 rounded border border-white/5">
+                <div className="text-xs text-muted-foreground mb-1">User</div>
+                <div className="text-sm text-white">{event["user.name"] || "N/A"}</div>
+              </div>
+              <div className="p-3 bg-white/5 rounded border border-white/5">
+                <div className="text-xs text-muted-foreground mb-1">Host</div>
+                <div className="text-sm text-white">{event["host.hostname"] || "N/A"}</div>
+              </div>
+              <div className="p-3 bg-white/5 rounded border border-white/5">
+                <div className="text-xs text-muted-foreground mb-1">Action</div>
+                <div className="text-sm text-white">{event["event.action"] || "N/A"}</div>
+              </div>
+              <div className="p-3 bg-white/5 rounded border border-white/5">
+                <div className="text-xs text-muted-foreground mb-1">Process</div>
+                <div className="text-sm text-white">{event["process.name"] || "N/A"}</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-white mb-3">Raw Payload</h3>
+            <pre className="p-4 bg-[#0d1117] rounded-lg border border-border text-xs text-green-400 font-mono overflow-x-auto">
+              {JSON.stringify(event, null, 2)}
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Main Page ---
+export default function AnomaliesPage() {
+  const { data: overview, isLoading: overviewLoading } = useAnomaliesOverview();
+  const { data: severity, isLoading: severityLoading } = useAnomaliesSeverity();
+  const { data: timeline, isLoading: timelineLoading } = useAnomaliesTimeline();
+  const { data: heatmap, isLoading: heatmapLoading } = useAnomaliesHeatmap();
+  const { data: entities, isLoading: entitiesLoading } = useAnomaliesEntities();
+  const { data: events, isLoading: eventsLoading } = useAnomaliesEvents();
+
+  const [selectedEvent, setSelectedEvent] = useState<AnomalyEvent | null>(null);
+
+  if (overviewLoading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <LoadingSkeleton className="h-32" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <LoadingSkeleton className="h-80" />
+          <LoadingSkeleton className="h-80" />
+        </div>
+        <LoadingSkeleton className="h-96" />
+      </div>
+    );
+  }
+
+  // --- Map Heatmap Data ---
+  const severityOrder = ["Normal", "Low", "Medium", "Suspicious", "High Threat", "Critical"];
+  const heatmapData = (heatmap || []).map(h => ({
+    x: h.hour,
+    y: severityOrder.indexOf(h.threat_level),
+    z: h.count,
+    level: h.threat_level
+  })).filter(h => h.y > 0); // Hide normal
+
+  // --- Entity Columns ---
+  const entityCols = [
+    { header: "Entity", accessorKey: "value" as keyof AnomalousEntity },
+    { header: "Anomalies", accessorKey: "anomaly_count" as keyof AnomalousEntity, className: "text-right" },
+    { header: "Max Score", cell: (item: AnomalousEntity) => <span className="text-cyan font-mono">{(item.max_score * 100).toFixed(1)}</span>, className: "text-right" },
+    { header: "Risk Level", cell: (item: AnomalousEntity) => <SeverityBadge level={item.risk_level} /> }
+  ];
+
+  // --- Event Columns ---
+  const eventCols = [
+    { header: "Time", cell: (item: AnomalyEvent) => new Date(item["@timestamp"]).toLocaleString(), className: "text-muted-foreground whitespace-nowrap" },
+    { header: "Severity", cell: (item: AnomalyEvent) => <SeverityBadge level={item.threat_level === "High Threat" ? "High" : (item.threat_level as "Critical" | "High" | "Medium" | "Low" | "Normal")} /> },
+    { header: "Score", cell: (item: AnomalyEvent) => <span className="text-cyan font-mono">{(item.anomaly_score * 100).toFixed(1)}</span> },
+    { header: "User", accessorKey: "user.name" as keyof AnomalyEvent },
+    { header: "Host", accessorKey: "host.hostname" as keyof AnomalyEvent },
+    { header: "Action", accessorKey: "event.action" as keyof AnomalyEvent },
+    { header: "Top Reason", cell: (item: AnomalyEvent) => <span className="text-xs text-gray-400 truncate max-w-[200px] block">{item.reasons?.[0]?.feature || "Statistical"}</span> }
+  ];
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* Top Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <MetricCard title="Total Anomalies" value={overview?.totalAnomalies.toLocaleString() || "0"} icon={<AlertTriangle className="text-yellow-500" />} trend={0} />
+        
+        <Card className="flex flex-col">
+          <SectionHeader title="Score Distribution" />
+          <div className="flex-1 mt-4">
+            <ChartContainer height={120}>
+              <BarChart data={overview?.distribution || []}>
+                <XAxis dataKey="range" hide />
+                <YAxis hide />
+                <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
+                <Bar dataKey="count" fill="#52A4EF" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </div>
+        </Card>
+
+        <Card className="flex flex-col">
+          <SectionHeader title="Severity Distribution" />
+          <div className="flex-1 mt-4">
+            {severityLoading ? <LoadingSkeleton className="h-full" /> : (
+              <div className="space-y-2">
+                {severity?.map((s) => (
+                  <div key={s.threat_level} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-300">{s.threat_level}</span>
+                    <span className="text-white font-mono">{s.count.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Temporal Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="flex flex-col">
+          <SectionHeader title="Anomaly Timeline" />
+          <div className="flex-1 mt-4">
+            {timelineLoading ? <LoadingSkeleton className="h-[250px]" /> : (
+              <ChartContainer height={250}>
+                <AreaChart data={timeline || []}>
+                  <defs>
+                    <linearGradient id="colorAnom" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="hour" stroke="#94A3B8" fontSize={12} tickFormatter={v => `${v}:00`} />
+                  <YAxis stroke="#94A3B8" fontSize={12} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
+                  <Area type="monotone" dataKey="count" stroke="#f97316" fillOpacity={1} fill="url(#colorAnom)" />
+                </AreaChart>
+              </ChartContainer>
+            )}
+          </div>
+        </Card>
+
+        <Card className="flex flex-col">
+          <SectionHeader title="Hour × Severity Heatmap" />
+          <div className="flex-1 mt-4">
+            {heatmapLoading ? <LoadingSkeleton className="h-[250px]" /> : (
+              <ChartContainer height={250}>
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis type="number" dataKey="x" name="Hour" tickFormatter={v => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" />
+                  <YAxis type="number" dataKey="y" name="Severity Index" tickFormatter={v => severityOrder[v]} domain={[1, 5]} stroke="#94A3B8" width={80} />
+                  <ZAxis type="number" dataKey="z" range={[20, 400]} name="Count" />
+                  <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
+                  <Scatter name="Anomalies" data={heatmapData}>
+                    {heatmapData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.y >= 4 ? "#ef4444" : entry.y === 3 ? "#f97316" : "#52A4EF"} opacity={0.8} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ChartContainer>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Entity Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="flex flex-col">
+          <SectionHeader title="Top Anomalous Users" />
+          {entitiesLoading ? <LoadingSkeleton className="h-[300px]" /> : (
+            <DataTable 
+              data={(entities?.users || []).map(u => ({...u, value: u["user.name"]}))} 
+              columns={entityCols} 
+              keyExtractor={(i: AnomalousEntity) => i["user.name"] || "unknown"}
+            />
+          )}
+        </Card>
+        <Card className="flex flex-col">
+          <SectionHeader title="Top Anomalous Hosts" />
+          {entitiesLoading ? <LoadingSkeleton className="h-[300px]" /> : (
+            <DataTable 
+              data={(entities?.hosts || []).map(h => ({...h, value: h["host.hostname"]}))} 
+              columns={entityCols} 
+              keyExtractor={(i: AnomalousEntity) => i["host.hostname"] || "unknown"}
+            />
+          )}
+        </Card>
+      </div>
+
+      {/* Anomaly Table */}
+      <Card>
+        <SectionHeader 
+          title="Detected Anomalies Log" 
+          description="Click on any row to view the detailed AI explanation and SHAP feature importance."
+        />
+        {eventsLoading ? <LoadingSkeleton className="h-[400px]" /> : (
+          <DataTable 
+            data={events || []} 
+            columns={eventCols} 
+            keyExtractor={(i: AnomalyEvent, idx: number) => String(i["@timestamp"]) + idx} 
+            onRowClick={(row) => setSelectedEvent(row as AnomalyEvent)}
+            rowClassName="cursor-pointer hover:bg-white/5 transition-colors"
+          />
+        )}
+      </Card>
+
+      <AnomalyDrawer event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+    </div>
+  );
+}
