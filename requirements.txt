@@ -24,3 +24,7 @@ tenacity>=8.3.0
 # ─── Type Hints (Python < 3.11 compat) ─────────────────────────────────────
 typing-extensions>=4.10.0
 python-calamine>=0.2.0
+
+# ─── API Backend ────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn>=0.30.0
