@@ -16,18 +16,19 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip
 } from "recharts";
 import { SectionHeader } from "../../components/layout/SectionHeader";
-import { FileCode, ShieldAlert, Crosshair, Fingerprint, Activity } from "lucide-react";
+import { FileCode, ShieldAlert, Crosshair, Fingerprint, Activity, AlertTriangle, RefreshCw } from "lucide-react";
 import { SigmaRuleStat } from "../../types/sigma";
 import { InvestigationDrawer } from "../../components/investigation/InvestigationDrawer";
+import { WidgetErrorBoundary } from "../../components/ui/WidgetErrorBoundary";
 import { InvestigationEvent } from "../../types/investigations";
 
 // Removed SigmaDrawer in favor of InvestigationDrawer
 
 // --- Main Page ---
 export default function SigmaPage() {
-  const { data: overview, isLoading: overviewLoading } = useSigmaOverview();
-  const { data: rules, isLoading: rulesLoading } = useSigmaRules();
-  const { data: coverage, isLoading: coverageLoading } = useSigmaCoverage();
+  const { data: overview, isLoading: overviewLoading, isError: overviewIsError, refetch: refetchOverview } = useSigmaOverview();
+  const { data: rules, isLoading: rulesLoading, isError: rulesIsError, refetch: refetchRules } = useSigmaRules();
+  const { data: coverage, isLoading: coverageLoading, isError: coverageIsError, refetch: refetchCoverage } = useSigmaCoverage();
 
   const [selectedRule, setSelectedRule] = useState<SigmaRuleStat | null>(null);
 
@@ -37,6 +38,20 @@ export default function SigmaPage() {
         <LoadingSkeleton className="h-32" />
         <LoadingSkeleton className="h-[300px]" />
         <LoadingSkeleton className="h-[500px]" />
+      </div>
+    );
+  }
+
+  if (overviewIsError || (!overviewLoading && !overview)) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 border border-red-500/20 bg-red-500/10 rounded-xl">
+        <AlertTriangle className="w-12 h-12 text-red-500 mb-4 opacity-80" />
+        <h2 className="text-xl font-medium text-white mb-2">Sigma Dashboard Error</h2>
+        <p className="text-red-400 mb-6 max-w-md text-center">Failed to load core sigma rules overview. The backend may be offline.</p>
+        <button onClick={() => refetchOverview()} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-md transition-colors">
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </button>
       </div>
     );
   }
@@ -69,8 +84,15 @@ export default function SigmaPage() {
           description="Number of rules and total detections grouped by security domain." 
         />
         <div className="flex-1 mt-4">
-          {coverageLoading ? <LoadingSkeleton className="h-[250px]" /> : (
-            <ChartContainer height={300}>
+          <WidgetErrorBoundary fallbackMessage="Failed to load Detection Coverage Categories chart.">
+            <ChartContainer 
+              height={300} 
+              isLoading={coverageLoading}
+              isError={coverageIsError}
+              onRetry={refetchCoverage}
+              isEmpty={!coverage || coverage.length === 0}
+              emptyMessage="No coverage data"
+            >
               <BarChart data={coverage || []} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                 <XAxis type="number" stroke="#94A3B8" fontSize={12} />
@@ -80,7 +102,7 @@ export default function SigmaPage() {
                 <Bar dataKey="detections" name="Detections" fill="#f97316" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ChartContainer>
-          )}
+          </WidgetErrorBoundary>
         </div>
       </Card>
 
@@ -90,15 +112,18 @@ export default function SigmaPage() {
           title="Sigma Rules Detections" 
           description="Click on any rule to view detection logic, matches, and affected entities."
         />
-        {rulesLoading ? <LoadingSkeleton className="h-[400px]" /> : (
+        <WidgetErrorBoundary fallbackMessage="Failed to load Sigma Rules table.">
           <DataTable 
             data={rules || []} 
             columns={ruleCols} 
             keyExtractor={(i: SigmaRuleStat) => i.id} 
             onRowClick={(row) => setSelectedRule(row as SigmaRuleStat)}
             rowClassName="cursor-pointer hover:bg-white/5 transition-colors"
+            isLoading={rulesLoading}
+            isError={rulesIsError}
+            onRetry={refetchRules}
           />
-        )}
+        </WidgetErrorBoundary>
       </Card>
 
       <InvestigationDrawer 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, AlertTriangle, ShieldAlert, Activity, Search, Users, FileText, Settings, ChevronLeft, ChevronRight, Target } from "lucide-react";
 import { Tooltip } from "../ui/Tooltip";
+import { BackendStatus } from "./BackendStatus";
 
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -100,6 +101,12 @@ export function Sidebar() {
           </Link>
         )}
       </div>
+      
+      {!isCollapsed && (
+        <div className="p-4 border-t border-border flex justify-center">
+          <BackendStatus />
+        </div>
+      )}
     </aside>
   );
 }

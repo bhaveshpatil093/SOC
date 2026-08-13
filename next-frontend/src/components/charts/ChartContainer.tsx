@@ -9,8 +9,10 @@ interface ChartContainerProps {
   className?: string;
   isLoading?: boolean;
   isError?: boolean;
+  error?: string | null;
   isEmpty?: boolean;
   emptyMessage?: string;
+  onRetry?: () => void;
 }
 
 export function ChartContainer({ 
@@ -19,8 +21,10 @@ export function ChartContainer({
   className = "",
   isLoading = false,
   isError = false,
+  error = null,
   isEmpty = false,
-  emptyMessage = "No data available"
+  emptyMessage = "No data available",
+  onRetry
 }: ChartContainerProps) {
   
   if (isLoading) {
@@ -33,9 +37,18 @@ export function ChartContainer({
 
   if (isError) {
     return (
-      <div className={`w-full flex flex-col items-center justify-center bg-red-500/5 rounded-lg border border-red-500/20 text-red-400 ${className}`} style={{ height }}>
-        <AlertCircle className="w-6 h-6 mb-2 opacity-75" />
-        <span className="text-sm">Failed to load chart data</span>
+      <div className={`w-full flex flex-col items-center justify-center bg-red-950/10 rounded-lg border border-red-900/30 text-red-400 p-4 ${className}`} style={{ height }}>
+        <AlertCircle className="w-8 h-8 mb-3 opacity-75" />
+        <span className="text-sm font-medium mb-1">Failed to load visualization</span>
+        {error && <span className="text-xs text-red-300/60 mb-4 max-w-xs text-center">{error}</span>}
+        {onRetry && (
+          <button 
+            onClick={onRetry}
+            className="px-3 py-1.5 mt-2 bg-red-500/10 hover:bg-red-500/20 text-xs border border-red-500/20 rounded transition-colors"
+          >
+            Try Again
+          </button>
+        )}
       </div>
     );
   }

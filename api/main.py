@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from api.routers import analytics, overview, behavior, anomalies, threats, sigma, investigations, entities, search
 
@@ -15,6 +16,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the full exception to the console for developers
+    print(f"Error handling request {request.method} {request.url}: {exc}")
+    # Return a sanitized error to the client
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal analytics engine failure. The dataset may be currently processing or offline."}
+    )
 
 app.include_router(analytics.router)
 app.include_router(overview.router)

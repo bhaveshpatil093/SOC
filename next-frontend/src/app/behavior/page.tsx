@@ -22,19 +22,20 @@ import {
 } from "recharts";
 import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { SectionHeader } from "../../components/layout/SectionHeader";
-import { Activity, ShieldAlert, Users, Server } from "lucide-react";
+import { Activity, ShieldAlert, Users, Server, RefreshCw, AlertTriangle } from "lucide-react";
 import { BehaviorUser, BehaviorHost, BehaviorProcess, BehaviorNetwork, BehaviorDeviation } from "../../types/behavior";
+import { WidgetErrorBoundary } from "../../components/ui/WidgetErrorBoundary";
 
 export default function BehaviorPage() {
-  const { data: overview, isLoading: overviewLoading } = useBehaviorOverview();
-  const { data: temporal, isLoading: temporalLoading } = useBehaviorTemporal();
-  const { data: users, isLoading: usersLoading } = useBehaviorUsers();
-  const { data: hosts, isLoading: hostsLoading } = useBehaviorHosts();
-  const { data: processes, isLoading: processesLoading } = useBehaviorProcesses();
-  const { data: network, isLoading: networkLoading } = useBehaviorNetwork();
+  const { data: overview, isLoading: overviewLoading, isError: overviewIsError, refetch: refetchOverview } = useBehaviorOverview();
+  const { data: temporal, isLoading: temporalLoading, isError: temporalIsError, refetch: refetchTemporal } = useBehaviorTemporal();
+  const { data: users, isLoading: usersLoading, isError: usersIsError, refetch: refetchUsers } = useBehaviorUsers();
+  const { data: hosts, isLoading: hostsLoading, isError: hostsIsError, refetch: refetchHosts } = useBehaviorHosts();
+  const { data: processes, isLoading: processesLoading, isError: processesIsError, refetch: refetchProcesses } = useBehaviorProcesses();
+  const { data: network, isLoading: networkLoading, isError: networkIsError, refetch: refetchNetwork } = useBehaviorNetwork();
   
   const [page, setPage] = useState(1);
-  const { data: deviationsData, isLoading: deviationsLoading } = useBehaviorDeviations(page, 50);
+  const { data: deviationsData, isLoading: deviationsLoading, isError: deviationsIsError, refetch: refetchDeviations } = useBehaviorDeviations(page, 50);
   const deviations = deviationsData?.data || [];
   const totalPages = deviationsData?.total_pages || 1;
 
@@ -49,6 +50,20 @@ export default function BehaviorPage() {
           <LoadingSkeleton className="h-80" />
         </div>
         <LoadingSkeleton className="h-96" />
+      </div>
+    );
+  }
+
+  if (overviewIsError || (!overviewLoading && !overview)) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 border border-red-500/20 bg-red-500/10 rounded-xl">
+        <AlertTriangle className="w-12 h-12 text-red-500 mb-4 opacity-80" />
+        <h2 className="text-xl font-medium text-white mb-2">Behavior Dashboard Error</h2>
+        <p className="text-red-400 mb-6 max-w-md text-center">Failed to load behavior analytics overview. The backend may be offline.</p>
+        <button onClick={() => refetchOverview()} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-md transition-colors">
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </button>
       </div>
     );
   }
@@ -110,31 +125,49 @@ export default function BehaviorPage() {
         <Card className="flex flex-col">
           <SectionHeader title="Activity by Hour (24h Heatmap)" />
           <div className="flex-1 mt-4">
-            <ChartContainer height={250} isLoading={temporalLoading} isEmpty={!scatterData || scatterData.length === 0} emptyMessage="No temporal data">
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis type="number" dataKey="x" name="Hour" tickFormatter={(v) => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" axisLine={false} tickLine={false} />
-                <YAxis type="number" dataKey="y" name="Activity" hide domain={[0, 2]} />
-                <ZAxis type="number" dataKey="z" range={[50, 600]} name="Events" />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} />
-                <Scatter name="Activity Volume" data={scatterData} fill="#1586FF" opacity={0.7} />
-              </ScatterChart>
-            </ChartContainer>
+            <WidgetErrorBoundary fallbackMessage="Failed to render Activity by Hour heatmap.">
+              <ChartContainer 
+                height={250} 
+                isLoading={temporalLoading} 
+                isError={temporalIsError}
+                onRetry={refetchTemporal}
+                isEmpty={!scatterData || scatterData.length === 0} 
+                emptyMessage="No temporal data"
+              >
+                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis type="number" dataKey="x" name="Hour" tickFormatter={(v) => `${v}:00`} domain={[0, 23]} stroke="#94A3B8" axisLine={false} tickLine={false} />
+                  <YAxis type="number" dataKey="y" name="Activity" hide domain={[0, 2]} />
+                  <ZAxis type="number" dataKey="z" range={[50, 600]} name="Events" />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} />
+                  <Scatter name="Activity Volume" data={scatterData} fill="#1586FF" opacity={0.7} />
+                </ScatterChart>
+              </ChartContainer>
+            </WidgetErrorBoundary>
           </div>
         </Card>
 
         <Card className="flex flex-col">
           <SectionHeader title="Activity by Day" />
           <div className="flex-1 mt-4">
-            <ChartContainer height={250} isLoading={temporalLoading} isEmpty={!temporal?.daily || temporal.daily.length === 0} emptyMessage="No daily data">
-              <BarChart data={temporal?.daily || []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="day_name" stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
-                <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => val > 1000 ? (val/1000).toFixed(1)+'k' : val} axisLine={false} tickLine={false} />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
-                <Bar dataKey="activity" fill="#15FFAB" radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ fill: '#FFFFFF', opacity: 1 }} />
-              </BarChart>
-            </ChartContainer>
+            <WidgetErrorBoundary fallbackMessage="Failed to render Activity by Day chart.">
+              <ChartContainer 
+                height={250} 
+                isLoading={temporalLoading} 
+                isError={temporalIsError}
+                onRetry={refetchTemporal}
+                isEmpty={!temporal?.daily || temporal.daily.length === 0} 
+                emptyMessage="No daily data"
+              >
+                <BarChart data={temporal?.daily || []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="day_name" stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
+                  <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => val > 1000 ? (val/1000).toFixed(1)+'k' : val} axisLine={false} tickLine={false} />
+                  <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                  <Bar dataKey="activity" fill="#15FFAB" radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ fill: '#FFFFFF', opacity: 1 }} />
+                </BarChart>
+              </ChartContainer>
+            </WidgetErrorBoundary>
           </div>
         </Card>
       </div>
@@ -143,11 +176,29 @@ export default function BehaviorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="flex flex-col">
           <SectionHeader title="User Behavior Baseline" />
-          {usersLoading ? <LoadingSkeleton className="h-[300px]" /> : <DataTable data={users || []} columns={userCols} keyExtractor={(i: BehaviorUser) => i.value} />}
+          <WidgetErrorBoundary fallbackMessage="Failed to load User Behavior baseline.">
+            <DataTable 
+              data={users || []} 
+              columns={userCols} 
+              keyExtractor={(i: BehaviorUser) => i.value} 
+              isLoading={usersLoading}
+              isError={usersIsError}
+              onRetry={refetchUsers}
+            />
+          </WidgetErrorBoundary>
         </Card>
         <Card className="flex flex-col">
           <SectionHeader title="Host Behavior Baseline" />
-          {hostsLoading ? <LoadingSkeleton className="h-[300px]" /> : <DataTable data={hosts || []} columns={hostCols} keyExtractor={(i: BehaviorHost) => i.value} />}
+          <WidgetErrorBoundary fallbackMessage="Failed to load Host Behavior baseline.">
+            <DataTable 
+              data={hosts || []} 
+              columns={hostCols} 
+              keyExtractor={(i: BehaviorHost) => i.value} 
+              isLoading={hostsLoading}
+              isError={hostsIsError}
+              onRetry={refetchHosts}
+            />
+          </WidgetErrorBoundary>
         </Card>
       </div>
 
@@ -155,11 +206,29 @@ export default function BehaviorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="flex flex-col">
           <SectionHeader title="Process Behavior (Rarity)" />
-          {processesLoading ? <LoadingSkeleton className="h-[300px]" /> : <DataTable data={processes || []} columns={processCols} keyExtractor={(i: BehaviorProcess) => i.value} />}
+          <WidgetErrorBoundary fallbackMessage="Failed to load Process Behavior.">
+            <DataTable 
+              data={processes || []} 
+              columns={processCols} 
+              keyExtractor={(i: BehaviorProcess) => i.value} 
+              isLoading={processesLoading}
+              isError={processesIsError}
+              onRetry={refetchProcesses}
+            />
+          </WidgetErrorBoundary>
         </Card>
         <Card className="flex flex-col">
           <SectionHeader title="Network Deviations" />
-          {networkLoading ? <LoadingSkeleton className="h-[300px]" /> : <DataTable data={network || []} columns={networkCols} keyExtractor={(i: BehaviorNetwork) => i.ip} />}
+          <WidgetErrorBoundary fallbackMessage="Failed to load Network Deviations.">
+            <DataTable 
+              data={network || []} 
+              columns={networkCols} 
+              keyExtractor={(i: BehaviorNetwork) => i.ip} 
+              isLoading={networkLoading}
+              isError={networkIsError}
+              onRetry={refetchNetwork}
+            />
+          </WidgetErrorBoundary>
         </Card>
       </div>
 
@@ -169,7 +238,7 @@ export default function BehaviorPage() {
           title="Behavioral Deviations Log" 
           description="Detailed view of ML-identified events that deviate significantly from learned baselines."
         />
-        {deviationsLoading ? <LoadingSkeleton className="h-[400px]" /> : (
+        <WidgetErrorBoundary fallbackMessage="Failed to load Behavioral Deviations Log.">
           <DataTable 
             data={deviations} 
             columns={deviationCols} 
@@ -177,8 +246,11 @@ export default function BehaviorPage() {
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
+            isLoading={deviationsLoading}
+            isError={deviationsIsError}
+            onRetry={refetchDeviations}
           />
-        )}
+        </WidgetErrorBoundary>
       </Card>
     </div>
   );

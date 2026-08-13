@@ -13,7 +13,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { CustomTooltip } from "../../components/charts/CustomTooltip";
 import { Filter } from "../../components/layout/Filter";
 import { SectionHeader } from "../../components/layout/SectionHeader";
-import { Activity, AlertTriangle, ShieldAlert, Users, Server, FileText } from "lucide-react";
+import { WidgetErrorBoundary } from "../../components/ui/WidgetErrorBoundary";
+import { Activity, AlertTriangle, ShieldAlert, Users, Server, FileText, RefreshCw } from "lucide-react";
 import { EventResponse, TopEntity, AnomalyDistributionItem } from "../../types/api";
 
 const COLORS = {
@@ -24,13 +25,13 @@ const COLORS = {
 };
 
 export default function DashboardPage() {
-  const { data: kpiData, isLoading: kpiLoading, error: kpiError } = useKPIs();
-  const { data: timeline, isLoading: timelineLoading } = useTimeline();
-  const { data: anomalyDistribution, isLoading: anomalyLoading } = useAnomalies();
-  const { data: entities, isLoading: entitiesLoading } = useEntities();
+  const { data: kpiData, isLoading: kpiLoading, isError: kpiIsError, error: kpiErrorObj, refetch: refetchKpi } = useKPIs();
+  const { data: timeline, isLoading: timelineLoading, isError: timelineIsError, refetch: refetchTimeline } = useTimeline();
+  const { data: anomalyDistribution, isLoading: anomalyLoading, isError: anomalyIsError, refetch: refetchAnomaly } = useAnomalies();
+  const { data: entities, isLoading: entitiesLoading, isError: entitiesIsError, refetch: refetchEntities } = useEntities();
   
   const [page, setPage] = useState(1);
-  const { data: recentCriticalEventsData, isLoading: eventsLoading } = useRecentEvents(page, 10);
+  const { data: recentCriticalEventsData, isLoading: eventsLoading, isError: eventsIsError, refetch: refetchEvents } = useRecentEvents(page, 10);
   const recentCriticalEvents = recentCriticalEventsData?.data || [];
   const totalPages = recentCriticalEventsData?.total_pages || 1;
 
@@ -52,8 +53,18 @@ export default function DashboardPage() {
     );
   }
 
-  if (kpiError || !kpiData) {
-    return <div className="text-red-500 p-8 border border-red-500/20 bg-red-500/10 rounded-xl">Error loading dashboard KPIs. Check backend connection.</div>;
+  if (kpiIsError || !kpiData) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 border border-red-500/20 bg-red-500/10 rounded-xl">
+        <AlertTriangle className="w-12 h-12 text-red-500 mb-4 opacity-80" />
+        <h2 className="text-xl font-medium text-white mb-2">Dashboard Error</h2>
+        <p className="text-red-400 mb-6 max-w-md text-center">Failed to load core dashboard analytics. The backend may be offline or processing.</p>
+        <button onClick={() => refetchKpi()} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-md transition-colors">
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </button>
+      </div>
+    );
   }
 
   const { kpis, riskScore } = kpiData;
@@ -101,26 +112,35 @@ export default function DashboardPage() {
             actions={<Filter options={[{label: "24h", value: "24h"}, {label: "7d", value: "7d"}, {label: "30d", value: "30d"}, {label: "June", value: "june"}]} value={timelineFilter} onChange={setTimelineFilter} />}
           />
           <div className="flex-1 mt-4">
-            <ChartContainer height={300} isLoading={timelineLoading} isEmpty={!timeline || timeline.length === 0} emptyMessage="No timeline data available">
-              <AreaChart data={timeline} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1586FF" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#1586FF" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorAnomalies" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#15FFAB" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#15FFAB" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="timestamp" stroke="#94A3B8" fontSize={12} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} />
-                <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => (val as number) > 1000 ? ((val as number)/1000).toFixed(1)+'k' : val} />
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="events" stroke="#1586FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
-                <Area type="monotone" dataKey="anomalies" stroke="#15FFAB" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomalies)" />
-              </AreaChart>
-            </ChartContainer>
+            <WidgetErrorBoundary fallbackMessage="Failed to render Threat Activity Timeline.">
+              <ChartContainer 
+                height={300} 
+                isLoading={timelineLoading} 
+                isError={timelineIsError}
+                onRetry={refetchTimeline}
+                isEmpty={!timeline || timeline.length === 0} 
+                emptyMessage="No timeline data available"
+              >
+                <AreaChart data={timeline} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1586FF" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#1586FF" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorAnomalies" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#15FFAB" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#15FFAB" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="timestamp" stroke="#94A3B8" fontSize={12} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} />
+                  <YAxis stroke="#94A3B8" fontSize={12} tickFormatter={(val) => (val as number) > 1000 ? ((val as number)/1000).toFixed(1)+'k' : val} />
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="events" stroke="#1586FF" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
+                  <Area type="monotone" dataKey="anomalies" stroke="#15FFAB" strokeWidth={2} fillOpacity={1} fill="url(#colorAnomalies)" />
+                </AreaChart>
+              </ChartContainer>
+            </WidgetErrorBoundary>
           </div>
         </Card>
 
@@ -140,46 +160,75 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-6">
           <Card className="flex-1">
             <h3 className="text-md font-medium text-white mb-4">Top Risky Hosts</h3>
-            {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> : 
-             <DataTable data={entities?.topHosts || []} columns={hostCols} keyExtractor={(item: TopEntity) => String(item["host.hostname"])} />}
+            <WidgetErrorBoundary fallbackMessage="Failed to render Top Hosts table.">
+              <DataTable 
+                data={entities?.topHosts || []} 
+                columns={hostCols} 
+                keyExtractor={(item: TopEntity) => String(item["host.hostname"])} 
+                isLoading={entitiesLoading}
+                isError={entitiesIsError}
+                onRetry={refetchEntities}
+              />
+            </WidgetErrorBoundary>
           </Card>
         </div>
         
         <div className="flex flex-col gap-6">
           <Card className="flex-1">
             <h3 className="text-md font-medium text-white mb-4">Top Risky Users</h3>
-            {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> :
-             <DataTable data={entities?.topUsers || []} columns={userCols} keyExtractor={(item: TopEntity) => String(item["user.name"])} />}
+            <WidgetErrorBoundary fallbackMessage="Failed to render Top Users table.">
+              <DataTable 
+                data={entities?.topUsers || []} 
+                columns={userCols} 
+                keyExtractor={(item: TopEntity) => String(item["user.name"])} 
+                isLoading={entitiesLoading}
+                isError={entitiesIsError}
+                onRetry={refetchEntities}
+              />
+            </WidgetErrorBoundary>
           </Card>
         </div>
 
         <Card className="flex flex-col">
           <h3 className="text-md font-medium text-white mb-4">Anomaly Distribution</h3>
           <div className="flex-1 min-h-[250px]">
-            <ChartContainer height={250} isLoading={anomalyLoading} isEmpty={!pieData || pieData.length === 0} emptyMessage="No distribution data">
-              <PieChart>
-                <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
-                  {pieData.map((entry: {name: string, color: string}, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                </Pie>
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
-              </PieChart>
-            </ChartContainer>
+            <WidgetErrorBoundary fallbackMessage="Failed to render Anomaly Distribution chart.">
+              <ChartContainer 
+                height={250} 
+                isLoading={anomalyLoading} 
+                isError={anomalyIsError}
+                onRetry={refetchAnomaly}
+                isEmpty={!pieData || pieData.length === 0} 
+                emptyMessage="No distribution data"
+              >
+                <PieChart>
+                  <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
+                    {pieData.map((entry: {name: string, color: string}, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Pie>
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
+                </PieChart>
+              </ChartContainer>
+            </WidgetErrorBoundary>
           </div>
         </Card>
       </div>
 
       <Card>
         <SectionHeader title="Recent Critical Events" description="Top 10 highest-scored anomalies classified as threats." />
-        {eventsLoading ? <LoadingSkeleton className="h-[400px]" /> :
-         <DataTable 
+        <WidgetErrorBoundary fallbackMessage="Failed to load Recent Events feed.">
+          <DataTable 
             data={recentCriticalEvents} 
             columns={eventCols} 
             keyExtractor={(item: EventResponse, idx: number) => String(item["@timestamp"]) + idx}
             page={page}
             totalPages={totalPages}
             onPageChange={setPage}
-         />}
+            isLoading={eventsLoading}
+            isError={eventsIsError}
+            onRetry={refetchEvents}
+          />
+        </WidgetErrorBoundary>
       </Card>
     </div>
   );

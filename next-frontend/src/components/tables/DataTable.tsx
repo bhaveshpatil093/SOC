@@ -1,6 +1,8 @@
 "use client";
 import React from "react";
 import { EmptyState } from "../shared/EmptyState";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 
 interface Column<T> {
   header: string;
@@ -20,6 +22,10 @@ interface DataTableProps<T> {
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  isLoading?: boolean;
+  isError?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function DataTable<T>({ 
@@ -32,8 +38,37 @@ export function DataTable<T>({
   rowClassName,
   page,
   totalPages,
-  onPageChange
+  onPageChange,
+  isLoading = false,
+  isError = false,
+  error = null,
+  onRetry
 }: DataTableProps<T>) {
+  if (isLoading) {
+    return <LoadingSkeleton className="w-full h-64" />;
+  }
+
+  if (isError) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center p-8 bg-red-950/10 border border-red-900/30 rounded-xl">
+        <AlertCircle className="w-10 h-10 text-red-500 mb-4 opacity-80" />
+        <h3 className="text-white font-medium mb-2">Failed to load data</h3>
+        <p className="text-sm text-red-300/70 text-center max-w-sm mb-6">
+          {error || "An unexpected error occurred while fetching table data."}
+        </p>
+        {onRetry && (
+          <button 
+            onClick={onRetry}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-md transition-colors text-sm"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Try Again
+          </button>
+        )}
+      </div>
+    );
+  }
+
   if (!data || data.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
