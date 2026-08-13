@@ -502,6 +502,19 @@ def _run_analytics(df: pd.DataFrame) -> Dict[str, Any]:
         threat_flags[encoded_mask | download_mask | hidden_mask] = "Critical"
 
     df_scored["threat_level"] = threat_flags
+    
+    # Calculate continuous threat_score
+    conds = [
+        df_scored["threat_level"] == "Critical",
+        df_scored["threat_level"] == "High Threat",
+        df_scored["threat_level"] == "Suspicious"
+    ]
+    choices = [
+        90.0 + df_scored["anomaly_score"] * 10.0,
+        70.0 + df_scored["anomaly_score"] * 19.0,
+        40.0 + df_scored["anomaly_score"] * 29.0
+    ]
+    df_scored["threat_score"] = np.select(conds, choices, default=0.0)
     results["scored_df"] = df_scored
 
     # ── Threat summary ────────────────────────────────────────────

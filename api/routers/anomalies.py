@@ -96,14 +96,14 @@ def get_top_entities(request: Request):
         top_users = _safe_records(anoms.groupby("user.name").agg(
             anomaly_count=("anomaly_score", "count"),
             max_score=("anomaly_score", "max")
-        ).reset_index().rename(columns={"user.name": "user"}).sort_values("anomaly_count", ascending=False).head(10))
+        ).reset_index().sort_values("anomaly_count", ascending=False).head(10))
         
     top_hosts = []
     if "host.hostname" in anoms.columns:
         top_hosts = _safe_records(anoms.groupby("host.hostname").agg(
             anomaly_count=("anomaly_score", "count"),
             max_score=("anomaly_score", "max")
-        ).reset_index().rename(columns={"host.hostname": "host"}).sort_values("anomaly_count", ascending=False).head(10))
+        ).reset_index().sort_values("anomaly_count", ascending=False).head(10))
     
     # Assign risk levels
     for u in top_users:

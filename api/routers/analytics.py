@@ -5,10 +5,12 @@ import pandas as pd
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
 def _safe_records(df: pd.DataFrame):
+    import numpy as np
     if df is None or (isinstance(df, pd.DataFrame) and df.empty):
         return []
-    # Fill NaN with None for JSON serialization
-    return df.where(pd.notnull(df), None).to_dict(orient="records")
+    # Fill NaN and Inf with None for JSON serialization
+    df = df.replace([np.inf, -np.inf], np.nan)
+    return df.astype(object).where(pd.notnull(df), None).to_dict(orient="records")
 
 @router.get("/status")
 def get_status():

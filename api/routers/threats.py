@@ -96,15 +96,15 @@ def get_threat_entities(request: Request):
     
     top_users = []
     if "user.name" in threats.columns:
-        top_users = _safe_records(threats.groupby("user.name").agg(threat_count=("threat_score", "count")).reset_index().rename(columns={"user.name": "value"}).sort_values("threat_count", ascending=False).head(5))
+        top_users = _safe_records(threats.groupby("user.name").agg(threat_count=("threat_score", "count")).reset_index().sort_values("threat_count", ascending=False).head(5))
         
     top_hosts = []
     if "host.hostname" in threats.columns:
-        top_hosts = _safe_records(threats.groupby("host.hostname").agg(threat_count=("threat_score", "count")).reset_index().rename(columns={"host.hostname": "value"}).sort_values("threat_count", ascending=False).head(5))
+        top_hosts = _safe_records(threats.groupby("host.hostname").agg(threat_count=("threat_score", "count")).reset_index().sort_values("threat_count", ascending=False).head(5))
         
     top_ips = []
     if "source.ip" in threats.columns:
-        top_ips = _safe_records(threats.groupby("source.ip").agg(threat_count=("threat_score", "count")).reset_index().rename(columns={"source.ip": "value"}).sort_values("threat_count", ascending=False).head(5))
+        top_ips = _safe_records(threats.groupby("source.ip").agg(threat_count=("threat_score", "count")).reset_index().sort_values("threat_count", ascending=False).head(5))
         
     return {
         "users": top_users,

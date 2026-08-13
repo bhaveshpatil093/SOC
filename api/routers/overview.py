@@ -111,11 +111,11 @@ def get_entities(request: Request):
     
     top_hosts = []
     if "host.hostname" in anoms.columns:
-        top_hosts = _safe_records(anoms.groupby("host.hostname").agg(count=("anomaly_score", "count")).reset_index().rename(columns={"host.hostname": "value"}).sort_values("count", ascending=False).head(5))
+        top_hosts = _safe_records(anoms.groupby("host.hostname").agg(anomaly_count=("is_anomaly", "count")).reset_index().sort_values("anomaly_count", ascending=False).head(5))
         
     top_users = []
     if "user.name" in anoms.columns:
-        top_users = _safe_records(anoms.groupby("user.name").agg(count=("anomaly_score", "count")).reset_index().rename(columns={"user.name": "value"}).sort_values("count", ascending=False).head(5))
+        top_users = _safe_records(anoms.groupby("user.name").agg(anomaly_count=("is_anomaly", "count")).reset_index().sort_values("anomaly_count", ascending=False).head(5))
     
     return {
         "topHosts": top_hosts,

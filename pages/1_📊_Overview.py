@@ -160,7 +160,7 @@ with st.sidebar:
         default=["Critical", "High Threat", "Suspicious", "Normal"],
     )
 
-    st.space("medium")
+    st.write("")
     if st.button("Refresh Analysis", use_container_width=True, type="primary"):
         st.cache_resource.clear()
         st.rerun()
@@ -206,7 +206,7 @@ with c7:
     with st.container(border=True):
         st.metric("Unique Users", f"{A['unique_users']}")
 
-st.space("small")
+st.write("")
 
 # ─── Tabs ──────────────────────────────────────────────────────────────────────
 tab_over, tab_threats, tab_anom, tab_patterns, tab_identity, tab_code, tab_files, tab_ip, tab_telemetry, tab_events = st.tabs([
@@ -268,7 +268,7 @@ with tab_over:
             )
             st.plotly_chart(fig_td, use_container_width=True)
 
-    st.space("small")
+    st.write("")
     # Event categories + actions
     col_cat, col_act = st.columns(2)
     with col_cat:
@@ -897,7 +897,7 @@ with tab_telemetry:
         with st.container(border=True):
             st.metric("Empty Columns", f"{n_empty}")
 
-    st.space("small")
+    st.write("")
 
     # ── Fill-rate overview chart ──────────────────────────────────
     with st.container(border=True):
@@ -924,7 +924,7 @@ with tab_telemetry:
                                  yaxis=dict(autorange="reversed"))
             st.plotly_chart(fig_nf, use_container_width=True)
 
-    st.space("small")
+    st.write("")
 
     # ── Namespace expanders with per-column profiles ─────────────
     _NS_LABELS = {
