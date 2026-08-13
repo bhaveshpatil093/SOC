@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { usePathname } from "next/navigation";
 import { SearchBox } from "./SearchBox";
 import { Bell, Database, User } from "lucide-react";
-import { mockStatus } from "../../lib/mock/data";
+import { useHealth } from "../../hooks/useDashboard";
 
 export function TopBar() {
   const pathname = usePathname();
-  const [status] = useState(mockStatus.status);
+  const { data: health } = useHealth();
+  const status = health?.status || "offline";
 
   const pathParts = pathname.split("/").filter(Boolean);
   const pageTitle = pathParts.length > 0 

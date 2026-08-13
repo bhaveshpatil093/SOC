@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useDashboard } from "../../hooks/useDashboard";
+import { useKPIs, useTimeline, useAnomalies, useEntities, useRecentEvents } from "../../hooks/useDashboard";
 import { MetricCard } from "../../components/cards/MetricCard";
 import { RiskScore } from "../../components/cards/RiskScore";
 import { Card } from "../../components/cards/Card";
@@ -13,6 +13,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { Filter } from "../../components/layout/Filter";
 import { SectionHeader } from "../../components/layout/SectionHeader";
 import { Activity, AlertTriangle, ShieldAlert, Users, Server, FileText } from "lucide-react";
+import { EventResponse, TopEntity, AnomalyDistributionItem } from "../../types/api";
 
 const COLORS = {
   normal: "#207ED5",
@@ -21,20 +22,17 @@ const COLORS = {
   critical: "#ef4444",
 };
 
-interface ThreatSummaryItem {
-  threat_level: string;
-  count: number;
-}
-
-interface GenericRow {
-  [key: string]: string | number | boolean | null | undefined;
-}
-
 export default function DashboardPage() {
-  const { data, isLoading, error } = useDashboard();
+  const { data: kpiData, isLoading: kpiLoading, error: kpiError } = useKPIs();
+  const { data: timeline, isLoading: timelineLoading } = useTimeline();
+  const { data: anomalyDistribution, isLoading: anomalyLoading } = useAnomalies();
+  const { data: entities, isLoading: entitiesLoading } = useEntities();
+  const { data: recentCriticalEvents, isLoading: eventsLoading } = useRecentEvents();
+
   const [timelineFilter, setTimelineFilter] = useState("30d");
 
-  if (isLoading) {
+  // Handle high-level loading state
+  if (kpiLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -49,13 +47,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (error || !data || data.error) {
-    return <div className="text-red-500 p-8 border border-red-500/20 bg-red-500/10 rounded-xl">Error loading dashboard: {data?.error || "Connection failed"}</div>;
+  if (kpiError || !kpiData) {
+    return <div className="text-red-500 p-8 border border-red-500/20 bg-red-500/10 rounded-xl">Error loading dashboard KPIs. Check backend connection.</div>;
   }
 
-  const { kpis, riskScore, timeline, anomalyDistribution, topHosts, topUsers, recentCriticalEvents } = data;
+  const { kpis, riskScore } = kpiData;
 
-  const pieData = anomalyDistribution.map((item: ThreatSummaryItem) => ({
+  const pieData = (anomalyDistribution || []).map((item: AnomalyDistributionItem) => ({
     name: item.threat_level,
     value: item.count,
     color: item.threat_level === "Normal" ? COLORS.normal : 
@@ -64,20 +62,20 @@ export default function DashboardPage() {
   }));
 
   const hostCols = [
-    { header: "Host", accessorKey: "host.hostname" as keyof GenericRow },
-    { header: "Anomalies", accessorKey: "anomaly_count" as keyof GenericRow, className: "text-right" }
+    { header: "Host", accessorKey: "host.hostname" as keyof TopEntity },
+    { header: "Anomalies", accessorKey: "anomaly_count" as keyof TopEntity, className: "text-right" }
   ];
   const userCols = [
-    { header: "User", accessorKey: "user.name" as keyof GenericRow },
-    { header: "Anomalies", accessorKey: "anomaly_count" as keyof GenericRow, className: "text-right" }
+    { header: "User", accessorKey: "user.name" as keyof TopEntity },
+    { header: "Anomalies", accessorKey: "anomaly_count" as keyof TopEntity, className: "text-right" }
   ];
   const eventCols = [
-    { header: "Time", cell: (item: GenericRow) => new Date(item["@timestamp"] as string).toLocaleTimeString(), className: "text-muted-foreground whitespace-nowrap" },
-    { header: "Severity", cell: (item: GenericRow) => <SeverityBadge level={item.threat_level === "High Threat" ? "High" : (item.threat_level as "Critical" | "High" | "Medium" | "Low" | "Normal")} /> },
-    { header: "User", accessorKey: "user.name" as keyof GenericRow },
-    { header: "Host", accessorKey: "host.hostname" as keyof GenericRow },
-    { header: "Action", accessorKey: "event.action" as keyof GenericRow },
-    { header: "Score", cell: (item: GenericRow) => <span className="text-cyan font-mono">{((item.anomaly_score as number) * 100).toFixed(1)}</span>, className: "text-right" }
+    { header: "Time", cell: (item: EventResponse) => new Date(item["@timestamp"]).toLocaleTimeString(), className: "text-muted-foreground whitespace-nowrap" },
+    { header: "Severity", cell: (item: EventResponse) => <SeverityBadge level={item.threat_level === "High Threat" ? "High" : (item.threat_level as "Critical" | "High" | "Medium" | "Low" | "Normal")} /> },
+    { header: "User", accessorKey: "user.name" as keyof EventResponse },
+    { header: "Host", accessorKey: "host.hostname" as keyof EventResponse },
+    { header: "Action", accessorKey: "event.action" as keyof EventResponse },
+    { header: "Score", cell: (item: EventResponse) => <span className="text-cyan font-mono">{(item.anomaly_score * 100).toFixed(1)}</span>, className: "text-right" }
   ];
 
   return (
@@ -98,7 +96,9 @@ export default function DashboardPage() {
             actions={<Filter options={[{label: "24h", value: "24h"}, {label: "7d", value: "7d"}, {label: "30d", value: "30d"}, {label: "June", value: "june"}]} value={timelineFilter} onChange={setTimelineFilter} />}
           />
           <div className="flex-1 mt-4">
-            {timeline.length > 0 ? (
+            {timelineLoading ? (
+              <LoadingSkeleton className="h-[300px]" />
+            ) : (timeline && timeline.length > 0) ? (
               <ChartContainer height={300}>
                 <AreaChart data={timeline} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                   <defs>
@@ -145,21 +145,25 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-6">
           <Card className="flex-1">
             <h3 className="text-md font-medium text-white mb-4">Top Risky Hosts</h3>
-            <DataTable data={topHosts} columns={hostCols} keyExtractor={(item: GenericRow) => String(item["host.hostname"])} />
+            {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> : 
+             <DataTable data={entities?.topHosts || []} columns={hostCols} keyExtractor={(item: TopEntity) => String(item["host.hostname"])} />}
           </Card>
         </div>
         
         <div className="flex flex-col gap-6">
           <Card className="flex-1">
             <h3 className="text-md font-medium text-white mb-4">Top Risky Users</h3>
-            <DataTable data={topUsers} columns={userCols} keyExtractor={(item: GenericRow) => String(item["user.name"])} />
+            {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> :
+             <DataTable data={entities?.topUsers || []} columns={userCols} keyExtractor={(item: TopEntity) => String(item["user.name"])} />}
           </Card>
         </div>
 
         <Card className="flex flex-col">
           <h3 className="text-md font-medium text-white mb-4">Anomaly Distribution</h3>
           <div className="flex-1 min-h-[250px]">
-            {pieData.length > 0 ? (
+            {anomalyLoading ? (
+              <LoadingSkeleton className="h-full" />
+            ) : pieData.length > 0 ? (
               <ChartContainer height={250}>
                 <PieChart>
                   <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
@@ -178,7 +182,8 @@ export default function DashboardPage() {
 
       <Card>
         <SectionHeader title="Recent Critical Events" description="Top 10 highest-scored anomalies classified as threats." />
-        <DataTable data={recentCriticalEvents} columns={eventCols} keyExtractor={(item: GenericRow, idx: number) => String(item["@timestamp"]) + idx} />
+        {eventsLoading ? <LoadingSkeleton className="h-[400px]" /> :
+         <DataTable data={recentCriticalEvents || []} columns={eventCols} keyExtractor={(item: EventResponse, idx: number) => String(item["@timestamp"]) + idx} />}
       </Card>
     </div>
   );
