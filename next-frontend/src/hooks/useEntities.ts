@@ -1,19 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchEntitiesSearch, fetchEntityProfile } from "../lib/api/client";
-import { EntityOverview, EntityProfile } from "../types/entities";
+import { useGlobalFilters } from "./useGlobalFilters";
 
 export function useEntitiesSearch(query?: string, type?: string) {
-  return useQuery<EntityOverview[]>({
-    queryKey: ["entities", "search", query, type],
-    queryFn: () => fetchEntitiesSearch(query, type),
-    refetchInterval: 60000,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["entities-search", query, type, filters],
+    queryFn: () => fetchEntitiesSearch(query, type, filters),
+    refetchInterval: false,
   });
 }
 
 export function useEntityProfile(name?: string, type?: string) {
-  return useQuery<EntityProfile>({
-    queryKey: ["entities", "profile", name, type],
-    queryFn: () => fetchEntityProfile(name!, type!),
-    enabled: !!(name && type),
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["entity-profile", name, type, filters],
+    queryFn: () => fetchEntityProfile(name!, type!, filters),
+    enabled: !!name && !!type,
+    refetchInterval: false,
   });
 }

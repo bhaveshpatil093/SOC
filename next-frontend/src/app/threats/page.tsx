@@ -52,7 +52,7 @@ export default function ThreatsPage() {
     "High Threat": "#f97316",
     "Critical": "#ef4444"
   };
-  const pieData = (distribution || []).map(d => ({
+  const pieData = (distribution || []).map((d: any) => ({
     name: d.threat_level,
     value: d.count,
     color: COLORS[d.threat_level] || "#8884d8"
@@ -102,7 +102,7 @@ export default function ThreatsPage() {
               <ChartContainer height={250}>
                 <PieChart>
                   <Pie data={pieData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
-                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    {pieData.map((entry: any, index: number) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
                   <RechartsTooltip contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)', borderRadius: '8px' }} />
                   <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }}/>
@@ -137,22 +137,22 @@ export default function ThreatsPage() {
         <Card className="flex flex-col">
           <SectionHeader title="Top Hosts" />
           {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> : 
-           <DataTable data={(entities?.hosts || []).map(h => ({...h, value: h["host.hostname"]}))} columns={hostCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
+           <DataTable data={(entities?.hosts || []).map((h: any) => ({...h, value: h["host.hostname"]}))} columns={hostCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
         </Card>
         <Card className="flex flex-col">
           <SectionHeader title="Top Users" />
           {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> : 
-           <DataTable data={(entities?.users || []).map(u => ({...u, value: u["user.name"]}))} columns={userCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
+           <DataTable data={(entities?.users || []).map((u: any) => ({...u, value: u["user.name"]}))} columns={userCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
         </Card>
         <Card className="flex flex-col">
           <SectionHeader title="Source IPs" />
           {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> : 
-           <DataTable data={(entities?.sourceIps || []).map(ip => ({...ip, value: ip["source.ip"]}))} columns={ipCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
+           <DataTable data={(entities?.sourceIps || []).map((ip: any) => ({...ip, value: ip["source.ip"]}))} columns={ipCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
         </Card>
         <Card className="flex flex-col">
           <SectionHeader title="Destination IPs" />
           {entitiesLoading ? <LoadingSkeleton className="h-[250px]" /> : 
-           <DataTable data={(entities?.destIps || []).map(ip => ({...ip, value: ip["destination.ip"]}))} columns={ipCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
+           <DataTable data={(entities?.destIps || []).map((ip: any) => ({...ip, value: ip["destination.ip"]}))} columns={ipCols} keyExtractor={(i: ThreatEntity) => i.value || "unknown"} />}
         </Card>
       </div>
 

@@ -84,7 +84,7 @@ export default function BehaviorPage() {
   ];
 
   // Map temporal hourly data to scatter format
-  const scatterData = (temporal?.hourly || []).map((h) => ({
+  const scatterData = (temporal?.hourly || []).map((h: any) => ({
     x: h.hour,
     y: 1, // Fix to single row for 1D heatmap effect
     z: h.activity

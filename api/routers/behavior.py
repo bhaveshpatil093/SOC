@@ -1,50 +1,52 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
+from api.utils.filters import apply_global_filters
 
 router = APIRouter(prefix="/api/v1/behavior", tags=["behavior"])
 
 @router.get("/overview")
-def get_behavior_overview():
+def get_behavior_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"error": data["error"]}
         
-    anomaly_rate = data.get("anomaly_rate", 0.0)
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    total = len(df)
+    deviations = int((df["anomaly_score"] > 0).sum()) if "anomaly_score" in df.columns else 0
+    anomaly_rate = (deviations / total * 100) if total > 0 else 0.0
     normal_pct = max(0.0, 100.0 - anomaly_rate)
     
-    unique_hosts = data.get("unique_hosts", 0)
-    unique_users = data.get("unique_users", 0)
-    unique_processes = data.get("unique_processes", 0)
+    unique_hosts = int(df["host.hostname"].nunique()) if "host.hostname" in df.columns else 0
+    unique_users = int(df["user.name"].nunique()) if "user.name" in df.columns else 0
+    unique_processes = int(df["process.name"].nunique()) if "process.name" in df.columns else 0
     entities_modeled = unique_hosts + unique_users + unique_processes
-    
-    deviations = data.get("n_anomalies", 0)
     
     return {
         "normalActivityPct": normal_pct,
-        "baselineCoverage": 100, # Assuming 100% since isolation forest uses all numerical features
+        "baselineCoverage": 100, 
         "entitiesModeled": entities_modeled,
         "deviations": deviations
     }
 
 @router.get("/temporal")
-def get_behavior_temporal():
+def get_behavior_temporal(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"hourly": [], "daily": []}
         
-    df_scored = data.get("scored_df", pd.DataFrame())
-    if df_scored.empty or "hour" not in df_scored.columns or "day_of_week" not in df_scored.columns:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "hour" not in df.columns or "day_of_week" not in df.columns:
         return {"hourly": [], "daily": []}
         
-    # Group by hour for 24h heatmap
-    hourly_df = df_scored.groupby("hour").size().reset_index(name="activity")
+    hourly_df = df.groupby("hour").size().reset_index(name="activity")
+    daily_df = df.groupby("day_of_week").size().reset_index(name="activity")
     
-    # Group by day for June distribution
-    daily_df = df_scored.groupby("day_of_week").size().reset_index(name="activity")
-    
-    # Map day_of_week to actual names for frontend convenience
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     daily_df["day_name"] = daily_df["day_of_week"].apply(lambda x: days[int(x)] if pd.notnull(x) and 0 <= int(x) < 7 else "Unknown")
     
@@ -54,97 +56,90 @@ def get_behavior_temporal():
     }
 
 @router.get("/users")
-def get_behavior_users():
+def get_behavior_users(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    top_users_df = data.get("top_users", pd.DataFrame())
-    user_anom_df = data.get("user_anomalies", pd.DataFrame())
-    
-    if top_users_df.empty:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    if df.empty or "user.name" not in df.columns:
         return []
         
-    # Convert string dict to actual dict safely
-    if not isinstance(top_users_df, pd.DataFrame):
-        return []
-        
-    merged = top_users_df.copy()
+    user_counts = df.groupby("user.name").size().reset_index(name="count")
+    user_anoms = df[df["anomaly_score"] > 0].groupby("user.name").size().reset_index(name="anomaly_count")
     
-    # Check if user_anomalies has 'user.name'
-    user_col = "user.name"
-    if not user_anom_df.empty and user_col in user_anom_df.columns:
-        # top_users uses 'value' instead of 'user.name'
-        if "value" in merged.columns:
-            merged = pd.merge(merged, user_anom_df, left_on="value", right_on=user_col, how="left")
-            merged["anomaly_count"] = merged["anomaly_count"].fillna(0)
-            merged["deviation_score"] = (merged["anomaly_count"] / merged["count"] * 100).fillna(0).round(1)
+    merged = pd.merge(user_counts, user_anoms, on="user.name", how="left")
+    merged["anomaly_count"] = merged["anomaly_count"].fillna(0)
+    merged["deviation_score"] = (merged["anomaly_count"] / merged["count"] * 100).fillna(0).round(1)
+    merged = merged.rename(columns={"user.name": "value"}).sort_values("count", ascending=False).head(50)
             
     return _safe_records(merged)
 
 @router.get("/hosts")
-def get_behavior_hosts():
+def get_behavior_hosts(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    top_hosts_df = data.get("top_hosts", pd.DataFrame())
-    host_anom_df = data.get("host_anomalies", pd.DataFrame())
-    
-    if top_hosts_df.empty or not isinstance(top_hosts_df, pd.DataFrame):
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    if df.empty or "host.hostname" not in df.columns:
         return []
         
-    merged = top_hosts_df.copy()
-    host_col = "host.hostname"
-    if not host_anom_df.empty and host_col in host_anom_df.columns:
-        if "value" in merged.columns:
-            merged = pd.merge(merged, host_anom_df, left_on="value", right_on=host_col, how="left")
-            merged["anomaly_count"] = merged["anomaly_count"].fillna(0)
-            merged["deviation_score"] = (merged["anomaly_count"] / merged["count"] * 100).fillna(0).round(1)
+    host_counts = df.groupby("host.hostname").size().reset_index(name="count")
+    host_anoms = df[df["anomaly_score"] > 0].groupby("host.hostname").size().reset_index(name="anomaly_count")
+    
+    merged = pd.merge(host_counts, host_anoms, on="host.hostname", how="left")
+    merged["anomaly_count"] = merged["anomaly_count"].fillna(0)
+    merged["deviation_score"] = (merged["anomaly_count"] / merged["count"] * 100).fillna(0).round(1)
+    merged = merged.rename(columns={"host.hostname": "value"}).sort_values("count", ascending=False).head(50)
             
     return _safe_records(merged)
 
 @router.get("/processes")
-def get_behavior_processes():
+def get_behavior_processes(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    # Use top_processes for base
-    top_proc_df = data.get("top_processes", pd.DataFrame())
-    
-    # Calculate some rarity score metric.
-    # In local_data_client, proc_rarity is 1 / (count + 1). We'll scale it to 0-100.
-    if isinstance(top_proc_df, pd.DataFrame) and not top_proc_df.empty and "count" in top_proc_df.columns:
-        top_proc_df = top_proc_df.copy()
-        top_proc_df["rarity_score"] = (100 / (top_proc_df["count"] + 1)).round(2)
-        return _safe_records(top_proc_df)
-    return []
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    if df.empty or "process.name" not in df.columns:
+        return []
+        
+    proc_counts = df.groupby("process.name").size().reset_index(name="count")
+    proc_counts["rarity_score"] = (100 / (proc_counts["count"] + 1)).round(2)
+    proc_counts = proc_counts.rename(columns={"process.name": "value"}).sort_values("count", ascending=False).head(50)
+    return _safe_records(proc_counts)
 
 @router.get("/network")
-def get_behavior_network():
+def get_behavior_network(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    # Merge anomalous_ips with top IPs
-    anom_ips_df = data.get("anomalous_ips", pd.DataFrame())
-    if isinstance(anom_ips_df, pd.DataFrame) and not anom_ips_df.empty:
-        return _safe_records(anom_ips_df)
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    if df.empty or "source.ip" not in df.columns:
+        return []
         
-    return []
+    net = df[df["anomaly_score"] > 0].groupby("source.ip").size().reset_index(name="count").sort_values("count", ascending=False).head(50)
+    net = net.rename(columns={"source.ip": "value"})
+    return _safe_records(net)
 
 @router.get("/deviations")
-def get_behavior_deviations():
+def get_behavior_deviations(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    anom_events_df = data.get("anomaly_events", pd.DataFrame())
-    if isinstance(anom_events_df, pd.DataFrame) and not anom_events_df.empty:
-        if "@timestamp" in anom_events_df.columns:
-            anom_events_df["@timestamp"] = anom_events_df["@timestamp"].astype(str)
-        # Limit to 100 for the frontend table
-        return _safe_records(anom_events_df.head(100))
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    if df.empty:
+        return []
         
-    return []
+    anom_events_df = df[df["anomaly_score"] > 0].sort_values("anomaly_score", ascending=False).head(100)
+    if not anom_events_df.empty and "@timestamp" in anom_events_df.columns:
+        anom_events_df["@timestamp"] = anom_events_df["@timestamp"].astype(str)
+    return _safe_records(anom_events_df)

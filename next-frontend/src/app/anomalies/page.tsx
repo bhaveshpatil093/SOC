@@ -53,12 +53,12 @@ export default function AnomaliesPage() {
 
   // --- Map Heatmap Data ---
   const severityOrder = ["Normal", "Low", "Medium", "Suspicious", "High Threat", "Critical"];
-  const heatmapData = (heatmap || []).map(h => ({
+  const heatmapData = (heatmap || []).map((h: any) => ({
     x: h.hour,
     y: severityOrder.indexOf(h.threat_level),
     z: h.count,
     level: h.threat_level
-  })).filter(h => h.y > 0); // Hide normal
+  })).filter((h: any) => h.y > 0); // Hide normal
 
   // --- Entity Columns ---
   const entityCols = [
@@ -104,7 +104,7 @@ export default function AnomaliesPage() {
           <div className="flex-1 mt-4">
             {severityLoading ? <LoadingSkeleton className="h-full" /> : (
               <div className="space-y-2">
-                {severity?.map((s) => (
+                {severity?.map((s: any) => (
                   <div key={s.threat_level} className="flex items-center justify-between text-sm">
                     <span className="text-gray-300">{s.threat_level}</span>
                     <span className="text-white font-mono">{s.count.toLocaleString()}</span>
@@ -153,7 +153,7 @@ export default function AnomaliesPage() {
                   <ZAxis type="number" dataKey="z" range={[20, 400]} name="Count" />
                   <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#121826', borderColor: 'rgba(255,255,255,0.08)' }} />
                   <Scatter name="Anomalies" data={heatmapData}>
-                    {heatmapData.map((entry, index) => (
+                    {heatmapData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.y >= 4 ? "#ef4444" : entry.y === 3 ? "#f97316" : "#52A4EF"} opacity={0.8} />
                     ))}
                   </Scatter>
@@ -170,7 +170,7 @@ export default function AnomaliesPage() {
           <SectionHeader title="Top Anomalous Users" />
           {entitiesLoading ? <LoadingSkeleton className="h-[300px]" /> : (
             <DataTable 
-              data={(entities?.users || []).map(u => ({...u, value: u["user.name"]}))} 
+              data={(entities?.users || []).map((u: any) => ({...u, value: u["user.name"]}))} 
               columns={entityCols} 
               keyExtractor={(i: AnomalousEntity) => i["user.name"] || "unknown"}
             />
@@ -180,7 +180,7 @@ export default function AnomaliesPage() {
           <SectionHeader title="Top Anomalous Hosts" />
           {entitiesLoading ? <LoadingSkeleton className="h-[300px]" /> : (
             <DataTable 
-              data={(entities?.hosts || []).map(h => ({...h, value: h["host.hostname"]}))} 
+              data={(entities?.hosts || []).map((h: any) => ({...h, value: h["host.hostname"]}))} 
               columns={entityCols} 
               keyExtractor={(i: AnomalousEntity) => i["host.hostname"] || "unknown"}
             />

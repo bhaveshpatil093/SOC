@@ -223,7 +223,7 @@ export default function EntitiesPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {searchResults?.map(entity => (
+              {searchResults?.map((entity: any) => (
                 <div 
                   key={entity.id} 
                   onClick={() => setSelectedEntity(entity)}

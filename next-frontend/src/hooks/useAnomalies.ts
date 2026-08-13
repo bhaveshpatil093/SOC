@@ -1,65 +1,60 @@
 import { useQuery } from "@tanstack/react-query";
 import { 
-  fetchAnomaliesOverview,
-  fetchAnomaliesSeverity,
-  fetchAnomaliesTimeline,
-  fetchAnomaliesHeatmap,
-  fetchAnomaliesEntities,
-  fetchAnomaliesEvents
+  fetchAnomaliesOverview, fetchAnomaliesSeverity, fetchAnomaliesTimeline, 
+  fetchAnomaliesHeatmap, fetchAnomaliesEntities, fetchAnomaliesEvents 
 } from "../lib/api/client";
-import { 
-  AnomalyOverview, 
-  AnomalySeverity, 
-  AnomalyTimelineItem, 
-  AnomalyHeatmapItem, 
-  AnomalousEntitiesResponse, 
-  AnomalyEvent 
-} from "../types/anomalies";
+import { useGlobalFilters } from "./useGlobalFilters";
 
 export function useAnomaliesOverview() {
-  return useQuery<AnomalyOverview>({
-    queryKey: ["anomalies", "overview"],
-    queryFn: fetchAnomaliesOverview,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["anomalies-overview", filters],
+    queryFn: () => fetchAnomaliesOverview(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useAnomaliesSeverity() {
-  return useQuery<AnomalySeverity[]>({
-    queryKey: ["anomalies", "severity"],
-    queryFn: fetchAnomaliesSeverity,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["anomalies-severity", filters],
+    queryFn: () => fetchAnomaliesSeverity(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useAnomaliesTimeline() {
-  return useQuery<AnomalyTimelineItem[]>({
-    queryKey: ["anomalies", "timeline"],
-    queryFn: fetchAnomaliesTimeline,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["anomalies-timeline", filters],
+    queryFn: () => fetchAnomaliesTimeline(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useAnomaliesHeatmap() {
-  return useQuery<AnomalyHeatmapItem[]>({
-    queryKey: ["anomalies", "heatmap"],
-    queryFn: fetchAnomaliesHeatmap,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["anomalies-heatmap", filters],
+    queryFn: () => fetchAnomaliesHeatmap(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useAnomaliesEntities() {
-  return useQuery<AnomalousEntitiesResponse>({
-    queryKey: ["anomalies", "entities"],
-    queryFn: fetchAnomaliesEntities,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["anomalies-entities", filters],
+    queryFn: () => fetchAnomaliesEntities(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useAnomaliesEvents() {
-  return useQuery<AnomalyEvent[]>({
-    queryKey: ["anomalies", "events"],
-    queryFn: fetchAnomaliesEvents,
-    refetchInterval: 60000,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["anomalies-events", filters],
+    queryFn: () => fetchAnomaliesEvents(filters),
+    refetchInterval: 30000,
   });
 }

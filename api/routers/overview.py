@@ -1,28 +1,30 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
+from api.utils.filters import apply_global_filters
 
 router = APIRouter(prefix="/api/v1/overview", tags=["overview"])
 
 @router.get("/kpis")
-def get_kpis():
+def get_kpis(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"error": data["error"]}
         
-    total_events = data.get("total_logs", 0)
-    anomalies = data.get("n_anomalies", 0)
-    unique_hosts = data.get("unique_hosts", 0)
-    unique_users = data.get("unique_users", 0)
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
-    threat_summary_df = data.get("threat_summary", pd.DataFrame())
+    total_events = len(df)
+    anomalies = int((df["anomaly_score"] > 0).sum()) if "anomaly_score" in df.columns else 0
+    unique_hosts = int(df["host.hostname"].nunique()) if "host.hostname" in df.columns else 0
+    unique_users = int(df["user.name"].nunique()) if "user.name" in df.columns else 0
+    
     high_critical = 0
-    if not threat_summary_df.empty:
-        mask = threat_summary_df["threat_level"].isin(["High Threat", "Critical"])
-        high_critical = int(threat_summary_df[mask]["count"].sum())
+    if "threat_level" in df.columns:
+        high_critical = int(df["threat_level"].isin(["High Threat", "Critical"]).sum())
         
-    anomaly_rate = data.get("anomaly_rate", 0.0)
+    anomaly_rate = (anomalies / total_events * 100) if total_events > 0 else 0.0
     critical_ratio = (high_critical / total_events) if total_events > 0 else 0
     calculated_score = min(100, max(0, int((anomaly_rate * 2.5) + (critical_ratio * 2000))))
     if calculated_score == 0 and anomalies > 0:
@@ -49,46 +51,65 @@ def get_kpis():
     }
 
 @router.get("/timeline")
-def get_timeline():
+def get_timeline(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    timeline_df = data.get("timeline", pd.DataFrame())
-    anomaly_rate = data.get("anomaly_rate", 0.0)
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
     timeline_data = []
-    if isinstance(timeline_df, pd.DataFrame) and not timeline_df.empty and "timestamp" in timeline_df.columns:
-        timeline_df = timeline_df.copy()
-        timeline_df["timestamp"] = timeline_df["timestamp"].astype(str)
-        records = _safe_records(timeline_df)
-        for r in records:
-            r["events"] = r.get("count", 0)
-            r["anomalies"] = int(r["events"] * (anomaly_rate / 100))
-            r["threats"] = int(r["anomalies"] * 0.1)
-        timeline_data = records
+    if not df.empty and "@timestamp" in df.columns:
+        # Group by hour for timeline
+        df["hour_block"] = pd.to_datetime(df["@timestamp"]).dt.floor("h")
+        grouped = df.groupby("hour_block").agg(
+            events=("@timestamp", "count"),
+            anomalies=("anomaly_score", lambda x: (x > 0).sum()),
+            threats=("threat_score", lambda x: (x > 0).sum())
+        ).reset_index()
+        
+        grouped["timestamp"] = grouped["hour_block"].astype(str)
+        timeline_data = _safe_records(grouped[["timestamp", "events", "anomalies", "threats"]])
     
     return timeline_data
 
 @router.get("/anomalies")
-def get_anomaly_distribution():
+def get_anomaly_distribution(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
-    threat_summary_df = data.get("threat_summary", pd.DataFrame())
-    return _safe_records(threat_summary_df) if isinstance(threat_summary_df, pd.DataFrame) and not threat_summary_df.empty else []
+        
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "threat_level" not in df.columns:
+        return []
+        
+    summary = df[df["anomaly_score"] > 0].groupby("threat_level").size().reset_index(name="count")
+    return _safe_records(summary)
 
 @router.get("/entities")
-def get_entities():
+def get_entities(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"topHosts": [], "topUsers": []}
         
-    host_anomalies_df = data.get("host_anomalies", pd.DataFrame())
-    top_hosts = _safe_records(host_anomalies_df.head(5)) if isinstance(host_anomalies_df, pd.DataFrame) and not host_anomalies_df.empty else []
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
-    user_anomalies_df = data.get("user_anomalies", pd.DataFrame())
-    top_users = _safe_records(user_anomalies_df.head(5)) if isinstance(user_anomalies_df, pd.DataFrame) and not user_anomalies_df.empty else []
+    if df.empty:
+        return {"topHosts": [], "topUsers": []}
+        
+    anoms = df[df["anomaly_score"] > 0]
+    
+    top_hosts = []
+    if "host.hostname" in anoms.columns:
+        top_hosts = _safe_records(anoms.groupby("host.hostname").agg(count=("anomaly_score", "count")).reset_index().rename(columns={"host.hostname": "value"}).sort_values("count", ascending=False).head(5))
+        
+    top_users = []
+    if "user.name" in anoms.columns:
+        top_users = _safe_records(anoms.groupby("user.name").agg(count=("anomaly_score", "count")).reset_index().rename(columns={"user.name": "value"}).sort_values("count", ascending=False).head(5))
     
     return {
         "topHosts": top_hosts,
@@ -96,15 +117,22 @@ def get_entities():
     }
 
 @router.get("/events/recent")
-def get_recent_events():
+def get_recent_events(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    crit_events_df = data.get("critical_events", pd.DataFrame())
-    if isinstance(crit_events_df, pd.DataFrame) and not crit_events_df.empty:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "threat_score" not in df.columns:
+        return []
+        
+    crit_events_df = df[df["threat_score"] > 0].sort_values("threat_score", ascending=False).head(10)
+    
+    if not crit_events_df.empty:
         if "@timestamp" in crit_events_df.columns:
             crit_events_df["@timestamp"] = crit_events_df["@timestamp"].astype(str)
-        return _safe_records(crit_events_df.head(10))
+        return _safe_records(crit_events_df)
     
     return []

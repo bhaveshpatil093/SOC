@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { SearchBox } from "./SearchBox";
+import { GlobalSearch } from "../filters/GlobalSearch";
 import { Bell, Database, User } from "lucide-react";
 import { useHealth } from "../../hooks/useDashboard";
 
@@ -21,7 +21,7 @@ export function TopBar() {
       <div className="flex items-center gap-6">
         <h2 className="text-lg font-semibold tracking-tight text-white">{pageTitle}</h2>
         <div className="hidden md:block w-72">
-          <SearchBox placeholder="Search entities, alerts, IP..." />
+          <GlobalSearch />
         </div>
       </div>
 

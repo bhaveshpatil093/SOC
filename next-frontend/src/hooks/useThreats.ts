@@ -6,50 +6,49 @@ import {
   fetchThreatsEntities,
   fetchThreatsEvents
 } from "../lib/api/client";
-import { 
-  ThreatOverview, 
-  ThreatDistributionItem, 
-  ThreatTimelineItem, 
-  ThreatEntitiesResponse, 
-  ThreatEvent 
-} from "../types/threats";
+import { useGlobalFilters } from "./useGlobalFilters";
 
 export function useThreatsOverview() {
-  return useQuery<ThreatOverview>({
-    queryKey: ["threats", "overview"],
-    queryFn: fetchThreatsOverview,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["threats-overview", filters],
+    queryFn: () => fetchThreatsOverview(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useThreatsDistribution() {
-  return useQuery<ThreatDistributionItem[]>({
-    queryKey: ["threats", "distribution"],
-    queryFn: fetchThreatsDistribution,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["threats-distribution", filters],
+    queryFn: () => fetchThreatsDistribution(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useThreatsTimeline() {
-  return useQuery<ThreatTimelineItem[]>({
-    queryKey: ["threats", "timeline"],
-    queryFn: fetchThreatsTimeline,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["threats-timeline", filters],
+    queryFn: () => fetchThreatsTimeline(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useThreatsEntities() {
-  return useQuery<ThreatEntitiesResponse>({
-    queryKey: ["threats", "entities"],
-    queryFn: fetchThreatsEntities,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["threats-entities", filters],
+    queryFn: () => fetchThreatsEntities(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useThreatsEvents() {
-  return useQuery<ThreatEvent[]>({
-    queryKey: ["threats", "events"],
-    queryFn: fetchThreatsEvents,
-    refetchInterval: 60000,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["threats-events", filters],
+    queryFn: () => fetchThreatsEvents(filters),
+    refetchInterval: 30000,
   });
 }

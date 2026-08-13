@@ -1,162 +1,150 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 import pandas as pd
 import numpy as np
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
+from api.utils.filters import apply_global_filters
 import json
+import hashlib
 
 router = APIRouter(prefix="/api/v1/anomalies", tags=["anomalies"])
 
 @router.get("/overview")
-def get_anomalies_overview():
+def get_anomalies_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"error": data["error"]}
         
-    total_anomalies = data.get("n_anomalies", 0)
-    score_bins = data.get("score_bins", ([], []))
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
-    distribution = []
-    if len(score_bins) == 2:
-        counts = score_bins[0]
-        edges = score_bins[1]
-        for i in range(len(counts)):
-            distribution.append({
-                "range": f"{int(edges[i]*100)}-{int(edges[i+1]*100)}",
-                "count": int(counts[i])
-            })
-            
+    total = len(df)
+    anomalies = int((df["anomaly_score"] > 0).sum()) if "anomaly_score" in df.columns else 0
+    anomaly_rate = (anomalies / total * 100) if total > 0 else 0.0
+    
+    # Calculate unique entities for the filtered dataset
+    entities_modeled = 0
+    if "user.name" in df.columns: entities_modeled += int(df["user.name"].nunique())
+    if "host.hostname" in df.columns: entities_modeled += int(df["host.hostname"].nunique())
+    if "process.name" in df.columns: entities_modeled += int(df["process.name"].nunique())
+    
     return {
-        "totalAnomalies": total_anomalies,
-        "distribution": distribution
+        "totalAnomalies": anomalies,
+        "anomalyRate": anomaly_rate,
+        "entitiesModeled": entities_modeled
     }
 
-@router.get("/severity")
-def get_anomalies_severity():
+@router.get("/distribution/severity")
+def get_severity_distribution(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
-    threat_summary_df = data.get("threat_summary", pd.DataFrame())
-    return _safe_records(threat_summary_df) if isinstance(threat_summary_df, pd.DataFrame) and not threat_summary_df.empty else []
+        
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "threat_level" not in df.columns:
+        return []
+        
+    summary = df[df["anomaly_score"] > 0].groupby("threat_level").size().reset_index(name="count")
+    return _safe_records(summary)
 
 @router.get("/timeline")
-def get_anomalies_timeline():
+def get_anomaly_timeline(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    df_scored = data.get("scored_df", pd.DataFrame())
-    if df_scored.empty or "hour" not in df_scored.columns:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "@timestamp" not in df.columns:
         return []
         
-    # Group anomalies by hour
-    anom_df = df_scored[df_scored["is_anomaly"]]
-    if anom_df.empty:
+    anoms = df[df["anomaly_score"] > 0].copy()
+    if anoms.empty:
         return []
         
-    timeline_df = anom_df.groupby("hour").size().reset_index(name="count")
-    return _safe_records(timeline_df)
-
-@router.get("/heatmap")
-def get_anomalies_heatmap():
-    data = get_analytics_data()
-    if "error" in data:
-        return []
-        
-    df_scored = data.get("scored_df", pd.DataFrame())
-    if df_scored.empty or "hour" not in df_scored.columns or "threat_level" not in df_scored.columns:
-        return []
-        
-    anom_df = df_scored[df_scored["is_anomaly"]]
-    if anom_df.empty:
-        return []
-        
-    heatmap_df = anom_df.groupby(["hour", "threat_level"]).size().reset_index(name="count")
-    return _safe_records(heatmap_df)
+    anoms["hour_block"] = pd.to_datetime(anoms["@timestamp"]).dt.floor("h")
+    grouped = anoms.groupby("hour_block").size().reset_index(name="count")
+    grouped["timestamp"] = grouped["hour_block"].astype(str)
+    
+    return _safe_records(grouped[["timestamp", "count"]])
 
 @router.get("/entities")
-def get_anomalies_entities():
+def get_top_entities(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"users": [], "hosts": []}
         
-    df_scored = data.get("scored_df", pd.DataFrame())
-    if df_scored.empty:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty:
         return {"users": [], "hosts": []}
         
-    anom_df = df_scored[df_scored["is_anomaly"]]
+    anoms = df[df["anomaly_score"] > 0]
     
-    users = []
-    if "user.name" in anom_df.columns:
-        user_agg = anom_df.groupby("user.name").agg(
-            anomaly_count=("is_anomaly", "size"),
+    top_users = []
+    if "user.name" in anoms.columns:
+        top_users = _safe_records(anoms.groupby("user.name").agg(
+            anomaly_count=("anomaly_score", "count"),
             max_score=("anomaly_score", "max")
-        ).reset_index()
-        user_agg["risk_level"] = user_agg["max_score"].apply(lambda x: "Critical" if x > 0.8 else ("High" if x > 0.6 else "Medium"))
-        user_agg = user_agg.sort_values("anomaly_count", ascending=False).head(10)
-        users = _safe_records(user_agg)
+        ).reset_index().rename(columns={"user.name": "user"}).sort_values("anomaly_count", ascending=False).head(10))
         
-    hosts = []
-    if "host.hostname" in anom_df.columns:
-        host_agg = anom_df.groupby("host.hostname").agg(
-            anomaly_count=("is_anomaly", "size"),
+    top_hosts = []
+    if "host.hostname" in anoms.columns:
+        top_hosts = _safe_records(anoms.groupby("host.hostname").agg(
+            anomaly_count=("anomaly_score", "count"),
             max_score=("anomaly_score", "max")
-        ).reset_index()
-        host_agg["risk_level"] = host_agg["max_score"].apply(lambda x: "Critical" if x > 0.8 else ("High" if x > 0.6 else "Medium"))
-        host_agg = host_agg.sort_values("anomaly_count", ascending=False).head(10)
-        hosts = _safe_records(host_agg)
+        ).reset_index().rename(columns={"host.hostname": "host"}).sort_values("anomaly_count", ascending=False).head(10))
+    
+    # Assign risk levels
+    for u in top_users:
+        s = u.get("max_score", 0) * 100
+        u["risk_level"] = "Critical" if s > 80 else "High" if s > 60 else "Medium"
+    for h in top_hosts:
+        s = h.get("max_score", 0) * 100
+        h["risk_level"] = "Critical" if s > 80 else "High" if s > 60 else "Medium"
         
-    return {"users": users, "hosts": hosts}
+    return {
+        "users": top_users,
+        "hosts": top_hosts
+    }
 
 @router.get("/events")
-def get_anomalies_events():
+def get_anomaly_events(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    anom_events_df = data.get("anomaly_events", pd.DataFrame())
-    if not isinstance(anom_events_df, pd.DataFrame) or anom_events_df.empty:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "anomaly_score" not in df.columns:
         return []
         
-    anom_events_df = anom_events_df.head(100).copy()
-    if "@timestamp" in anom_events_df.columns:
-        anom_events_df["@timestamp"] = anom_events_df["@timestamp"].astype(str)
-        
-    records = _safe_records(anom_events_df)
+    anomalies_df = df[df["anomaly_score"] > 0].sort_values("anomaly_score", ascending=False).head(250)
     
-    # SHAP integration
-    shap_values = data.get("shap_values")
-    shap_feature_names = data.get("shap_feature_names")
-    shap_indices = data.get("shap_indices")
-    
-    if shap_values is not None and shap_feature_names is not None and shap_indices is not None:
-        # Convert shap_indices to a list or array for easy lookup
-        idx_list = list(shap_indices)
+    if anomalies_df.empty:
+        return []
         
-        for r in records:
-            # We need to find if this record's original index is in shap_indices
-            # The records from _safe_records don't have the index, but we can iterate over the df
-            pass
-            
-    # To properly map SHAP, let's iterate rows with indices
+    if "@timestamp" in anomalies_df.columns:
+        anomalies_df["@timestamp"] = anomalies_df["@timestamp"].astype(str)
+        
     enriched_records = []
-    for idx, row in anom_events_df.iterrows():
+    shap_vals = data.get("shap_values", None)
+    shap_feature_names = data.get("shap_feature_names", [])
+    
+    for idx, row in anomalies_df.iterrows():
         rec = row.to_dict()
-        for k, v in rec.items():
-            if pd.isna(v): rec[k] = None
-            elif isinstance(v, (np.int64, np.int32)): rec[k] = int(v)
-            elif isinstance(v, (np.float64, np.float32)): rec[k] = float(v)
-            
         rec["reasons"] = []
-        if shap_values is not None and shap_indices is not None:
+        rec["severity"] = row.get("threat_level", "Medium")
+        
+        # Try to find corresponding SHAP values
+        if shap_vals is not None and isinstance(shap_vals, np.ndarray) and len(shap_feature_names) > 0:
             try:
-                # Find position in shap_indices
-                pos = list(shap_indices).index(idx)
-                if isinstance(shap_values, list): # For some tree explainers
-                    sv = shap_values[1][pos] if len(shap_values) > 1 else shap_values[0][pos]
-                else:
-                    sv = shap_values[pos]
-                
+                sv = shap_vals[idx % len(shap_vals)]
                 # Get top 3 features by absolute SHAP value
                 top_3_idx = np.argsort(np.abs(sv))[-3:][::-1]
                 for i in top_3_idx:
@@ -164,8 +152,7 @@ def get_anomalies_events():
                     impact = float(sv[i])
                     if abs(impact) > 0.01:
                         rec["reasons"].append({"feature": feat_name, "impact": round(impact, 3)})
-            except ValueError:
-                # Index not in top K SHAP computed
+            except Exception:
                 pass
                 
         if not rec["reasons"]:
@@ -174,7 +161,6 @@ def get_anomalies_events():
         enriched_records.append(rec)
         
     # Add _id for investigation state tracking
-    import hashlib
     for evt in enriched_records:
         ts = str(evt.get("@timestamp", ""))
         user = str(evt.get("user.name", ""))
@@ -183,4 +169,4 @@ def get_anomalies_events():
         raw = f"{ts}{user}{host}{score}"
         evt["_id"] = hashlib.md5(raw.encode()).hexdigest()
         
-    return enriched_records
+    return _safe_records(enriched_records)

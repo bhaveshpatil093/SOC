@@ -1,146 +1,129 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
+from api.utils.filters import apply_global_filters
 
 router = APIRouter(prefix="/api/v1/threats", tags=["threats"])
 
 @router.get("/overview")
-def get_threats_overview():
+def get_threat_overview(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return {"error": data["error"]}
         
-    threat_summary_df = data.get("threat_summary", pd.DataFrame())
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
-    critical = 0
-    high = 0
-    medium = 0 # In local_data_client, "Suspicious" acts as medium
-    
-    if not threat_summary_df.empty:
-        critical = int(threat_summary_df[threat_summary_df["threat_level"] == "Critical"]["count"].sum())
-        high = int(threat_summary_df[threat_summary_df["threat_level"] == "High Threat"]["count"].sum())
-        medium = int(threat_summary_df[threat_summary_df["threat_level"] == "Suspicious"]["count"].sum())
+    if df.empty or "threat_score" not in df.columns:
+        return {
+            "critical": 0, "high": 0, "medium": 0, "hosts": 0, "users": 0
+        }
         
-    # Get affected hosts and users (only those involved in Critical/High/Suspicious events)
-    df_scored = data.get("scored_df", pd.DataFrame())
-    affected_hosts = 0
-    affected_users = 0
+    critical = int(df[df["threat_level"] == "Critical"].shape[0])
+    high = int(df[df["threat_level"] == "High Threat"].shape[0])
+    medium = int(df[(df["threat_score"] > 0) & (~df["threat_level"].isin(["Critical", "High Threat"]))].shape[0])
     
-    if not df_scored.empty and "threat_level" in df_scored.columns:
-        threat_mask = df_scored["threat_level"].isin(["Critical", "High Threat", "Suspicious"])
-        if "host.hostname" in df_scored.columns:
-            affected_hosts = df_scored[threat_mask]["host.hostname"].nunique()
-        if "user.name" in df_scored.columns:
-            affected_users = df_scored[threat_mask]["user.name"].nunique()
-            
+    threat_df = df[df["threat_score"] > 0]
+    hosts = int(threat_df["host.hostname"].nunique()) if "host.hostname" in threat_df.columns else 0
+    users = int(threat_df["user.name"].nunique()) if "user.name" in threat_df.columns else 0
+    
     return {
-        "criticalThreats": critical,
-        "highThreats": high,
-        "mediumThreats": medium,
-        "affectedHosts": affected_hosts,
-        "affectedUsers": affected_users
+        "critical": critical,
+        "high": high,
+        "medium": medium,
+        "hosts": hosts,
+        "users": users
     }
 
 @router.get("/distribution")
-def get_threats_distribution():
+def get_threat_distribution(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
-    threat_summary_df = data.get("threat_summary", pd.DataFrame())
-    if threat_summary_df.empty:
+        
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "threat_level" not in df.columns:
         return []
         
-    # Filter out 'Normal'
-    dist_df = threat_summary_df[threat_summary_df["threat_level"] != "Normal"]
-    return _safe_records(dist_df)
+    summary = df[df["threat_score"] > 0].groupby("threat_level").size().reset_index(name="count")
+    return _safe_records(summary)
 
 @router.get("/timeline")
-def get_threats_timeline():
+def get_threat_timeline(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    df_scored = data.get("scored_df", pd.DataFrame())
-    if df_scored.empty or "hour" not in df_scored.columns or "threat_level" not in df_scored.columns:
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty or "@timestamp" not in df.columns:
         return []
         
-    threat_mask = df_scored["threat_level"].isin(["Critical", "High Threat", "Suspicious"])
-    threat_df = df_scored[threat_mask]
-    
-    if threat_df.empty:
+    threats = df[df["threat_score"] > 0].copy()
+    if threats.empty:
         return []
         
-    # Group by hour and threat_level
-    timeline_df = threat_df.groupby(["hour", "threat_level"]).size().unstack(fill_value=0).reset_index()
+    threats["hour_block"] = pd.to_datetime(threats["@timestamp"]).dt.floor("h")
+    grouped = threats.groupby(["hour_block", "threat_level"]).size().reset_index(name="count")
+    grouped["timestamp"] = grouped["hour_block"].astype(str)
     
-    # Ensure all columns exist
-    for col in ["Critical", "High Threat", "Suspicious"]:
-        if col not in timeline_df.columns:
-            timeline_df[col] = 0
-            
-    return _safe_records(timeline_df)
+    return _safe_records(grouped[["timestamp", "threat_level", "count"]])
 
 @router.get("/entities")
-def get_threats_entities():
+def get_threat_entities(request: Request):
     data = get_analytics_data()
     if "error" in data:
-        return {"hosts": [], "users": [], "sourceIps": [], "destIps": []}
+        return {"users": [], "hosts": [], "ips": []}
         
-    df_scored = data.get("scored_df", pd.DataFrame())
-    if df_scored.empty or "threat_level" not in df_scored.columns:
-        return {"hosts": [], "users": [], "sourceIps": [], "destIps": []}
-        
-    threat_mask = df_scored["threat_level"].isin(["Critical", "High Threat", "Suspicious"])
-    threat_df = df_scored[threat_mask]
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
-    hosts = []
-    if "host.hostname" in threat_df.columns:
-        host_agg = threat_df.groupby("host.hostname").size().reset_index(name="count").sort_values("count", ascending=False).head(5)
-        hosts = _safe_records(host_agg)
+    if df.empty:
+        return {"users": [], "hosts": [], "ips": []}
         
-    users = []
-    if "user.name" in threat_df.columns:
-        user_agg = threat_df.groupby("user.name").size().reset_index(name="count").sort_values("count", ascending=False).head(5)
-        users = _safe_records(user_agg)
+    threats = df[df["threat_score"] > 0]
+    
+    top_users = []
+    if "user.name" in threats.columns:
+        top_users = _safe_records(threats.groupby("user.name").agg(threat_count=("threat_score", "count")).reset_index().rename(columns={"user.name": "value"}).sort_values("threat_count", ascending=False).head(5))
         
-    source_ips = []
-    if "source.ip" in threat_df.columns:
-        sip_agg = threat_df.groupby("source.ip").size().reset_index(name="count").sort_values("count", ascending=False).head(5)
-        source_ips = _safe_records(sip_agg)
+    top_hosts = []
+    if "host.hostname" in threats.columns:
+        top_hosts = _safe_records(threats.groupby("host.hostname").agg(threat_count=("threat_score", "count")).reset_index().rename(columns={"host.hostname": "value"}).sort_values("threat_count", ascending=False).head(5))
         
-    dest_ips = []
-    if "destination.ip" in threat_df.columns:
-        dip_agg = threat_df.groupby("destination.ip").size().reset_index(name="count").sort_values("count", ascending=False).head(5)
-        dest_ips = _safe_records(dip_agg)
+    top_ips = []
+    if "source.ip" in threats.columns:
+        top_ips = _safe_records(threats.groupby("source.ip").agg(threat_count=("threat_score", "count")).reset_index().rename(columns={"source.ip": "value"}).sort_values("threat_count", ascending=False).head(5))
         
     return {
-        "hosts": hosts,
-        "users": users,
-        "sourceIps": source_ips,
-        "destIps": dest_ips
+        "users": top_users,
+        "hosts": top_hosts,
+        "ips": top_ips
     }
 
-@router.get("/events")
-def get_threats_events():
+@router.get("/feed")
+def get_threat_feed(request: Request):
     data = get_analytics_data()
     if "error" in data:
         return []
         
-    crit_df = data.get("critical_events", pd.DataFrame())
-    susp_df = data.get("suspicious_events", pd.DataFrame())
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
     
-    if crit_df.empty and susp_df.empty:
+    if df.empty or "threat_score" not in df.columns:
         return []
         
-    combined = pd.concat([crit_df, susp_df]).sort_values("anomaly_score", ascending=False).head(200)
+    threats = df[df["threat_score"] > 0].sort_values("threat_score", ascending=False).head(100)
     
-    if "@timestamp" in combined.columns:
-        combined["@timestamp"] = combined["@timestamp"].astype(str)
-        
-    # Check for MITRE/Sigma
-    # For now, local_data_client doesn't inject it, but we make sure the payload is safe
-    events_list = _safe_records(combined)
+    if not threats.empty:
+        if "@timestamp" in threats.columns:
+            threats["@timestamp"] = threats["@timestamp"].astype(str)
+            
+    events_list = _safe_records(threats)
     
     # Add _id for investigation state tracking
     import hashlib

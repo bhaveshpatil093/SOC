@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import analytics, overview, behavior, anomalies, threats, sigma, investigations, entities
+from api.routers import analytics, overview, behavior, anomalies, threats, sigma, investigations, entities, search
 
 app = FastAPI(
     title="SOC Analytics API",
@@ -24,6 +24,7 @@ app.include_router(threats.router)
 app.include_router(sigma.router)
 app.include_router(investigations.router)
 app.include_router(entities.router)
+app.include_router(search.router)
 
 @app.get("/")
 def root():

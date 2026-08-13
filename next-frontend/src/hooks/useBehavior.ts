@@ -1,67 +1,74 @@
 import { useQuery } from "@tanstack/react-query";
 import { 
-  fetchBehaviorOverview,
-  fetchBehaviorTemporal,
-  fetchBehaviorUsers,
-  fetchBehaviorHosts,
-  fetchBehaviorProcesses,
-  fetchBehaviorNetwork,
-  fetchBehaviorDeviations
+  fetchBehaviorOverview, 
+  fetchBehaviorTemporal, 
+  fetchBehaviorUsers, 
+  fetchBehaviorHosts, 
+  fetchBehaviorProcesses, 
+  fetchBehaviorNetwork, 
+  fetchBehaviorDeviations 
 } from "../lib/api/client";
-import { BehaviorOverview, BehaviorTemporal, BehaviorUser, BehaviorHost, BehaviorProcess, BehaviorNetwork, BehaviorDeviation } from "../types/behavior";
+import { useGlobalFilters } from "./useGlobalFilters";
 
 export function useBehaviorOverview() {
-  return useQuery<BehaviorOverview>({
-    queryKey: ["behavior", "overview"],
-    queryFn: fetchBehaviorOverview,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-overview", filters],
+    queryFn: () => fetchBehaviorOverview(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useBehaviorTemporal() {
-  return useQuery<BehaviorTemporal>({
-    queryKey: ["behavior", "temporal"],
-    queryFn: fetchBehaviorTemporal,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-temporal", filters],
+    queryFn: () => fetchBehaviorTemporal(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useBehaviorUsers() {
-  return useQuery<BehaviorUser[]>({
-    queryKey: ["behavior", "users"],
-    queryFn: fetchBehaviorUsers,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-users", filters],
+    queryFn: () => fetchBehaviorUsers(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useBehaviorHosts() {
-  return useQuery<BehaviorHost[]>({
-    queryKey: ["behavior", "hosts"],
-    queryFn: fetchBehaviorHosts,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-hosts", filters],
+    queryFn: () => fetchBehaviorHosts(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useBehaviorProcesses() {
-  return useQuery<BehaviorProcess[]>({
-    queryKey: ["behavior", "processes"],
-    queryFn: fetchBehaviorProcesses,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-processes", filters],
+    queryFn: () => fetchBehaviorProcesses(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useBehaviorNetwork() {
-  return useQuery<BehaviorNetwork[]>({
-    queryKey: ["behavior", "network"],
-    queryFn: fetchBehaviorNetwork,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-network", filters],
+    queryFn: () => fetchBehaviorNetwork(filters),
     refetchInterval: 60000,
   });
 }
 
 export function useBehaviorDeviations() {
-  return useQuery<BehaviorDeviation[]>({
-    queryKey: ["behavior", "deviations"],
-    queryFn: fetchBehaviorDeviations,
-    refetchInterval: 60000,
+  const { filters } = useGlobalFilters();
+  return useQuery({
+    queryKey: ["behavior-deviations", filters],
+    queryFn: () => fetchBehaviorDeviations(filters),
+    refetchInterval: 30000,
   });
 }

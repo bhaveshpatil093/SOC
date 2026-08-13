@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Request, Query, HTTPException
 from typing import Dict, List, Optional
 import pandas as pd
 from api.services.data_service import get_analytics_data
 from api.routers.analytics import _safe_records
+from api.utils.filters import apply_global_filters
 
 router = APIRouter(prefix="/api/v1/entities", tags=["entities"])
 
@@ -47,38 +48,45 @@ def generate_entity_search_cache(df: pd.DataFrame):
     return sorted(results, key=lambda x: x["risk_score"], reverse=True)
 
 @router.get("/search")
-def search_entities(
-    q: Optional[str] = Query(None),
-    type: Optional[str] = Query(None)
-):
-    global _cached_search_results
-    if not _cached_search_results:
-        data = get_analytics_data()
-        df = data.get("scored_df", pd.DataFrame())
-        if not df.empty:
-            _cached_search_results = generate_entity_search_cache(df)
-            
-    results = _cached_search_results
+def search_entities(request: Request, type: str = "All"):
+    """
+    Returns a unified catalog of all entities in the network.
+    """
+    data = get_analytics_data()
+    if "error" in data:
+        return []
+        
+    df = data.get("scored_df", pd.DataFrame())
+    df = apply_global_filters(df, dict(request.query_params))
+    
+    if df.empty:
+        return []
+        
+    # Build dynamic entities catalog (expensive but fully dynamic)
+    results = generate_entity_search_cache(df)
     
     if type and type.lower() != "all":
         results = [r for r in results if r["type"].lower() == type.lower()]
         
-    if q:
-        q_lower = q.lower()
-        results = [r for r in results if q_lower in r["name"].lower()]
-        
     return results[:100]  # Limit output for performance
 
 @router.get("/profile")
-def get_entity_profile(
-    name: str = Query(...),
-    type: str = Query(...)
-):
+def get_entity_profile(request: Request, name: str, type: str):
     data = get_analytics_data()
+    if "error" in data:
+        return {"error": data["error"]}
+        
     df = data.get("scored_df", pd.DataFrame())
+    # we DO NOT filter the dataframe purely yet, because we need to filter for THIS specific entity
+    # However, we DO want to apply OTHER global filters (like date ranges)
+    global_filters = dict(request.query_params)
+    global_filters.pop("name", None) # remove just in case
+    global_filters.pop("type", None)
+    
+    df = apply_global_filters(df, global_filters)
     
     if df.empty:
-        raise HTTPException(status_code=404, detail="No data available")
+        return {"error": "Dataset empty"}
         
     field_map = {
         "User": "user.name",
