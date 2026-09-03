@@ -31,21 +31,29 @@ DATA_DIR = Path("data")
 UPLOAD_DIR = DATA_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# Find primary platform file (data.xlsx / data.csv / data.parquet)
-_primary_file = None
-for ext in ("xlsx", "csv", "parquet"):
-    candidate = DATA_DIR / f"data.{ext}"
-    if candidate.exists():
-        _primary_file = candidate
-        break
-# Fallback: first file in data/ that isn't in uploads/
-if _primary_file is None:
+# Find primary data source: multi-parquet dataset OR single file
+_primary_source = None
+_is_dataset = False
+
+# 1. Check for multi-parquet dataset (≥2 parquet files in data/)
+_parquet_files = sorted(DATA_DIR.glob("*.parquet"))
+if len(_parquet_files) >= 2:
+    _primary_source = DATA_DIR
+    _is_dataset = True
+else:
+    # 2. Fall back to single file detection
     for ext in ("xlsx", "csv", "parquet"):
-        for f in sorted(DATA_DIR.glob(f"*.{ext}")):
-            _primary_file = f
+        candidate = DATA_DIR / f"data.{ext}"
+        if candidate.exists():
+            _primary_source = candidate
             break
-        if _primary_file:
-            break
+    if _primary_source is None:
+        for ext in ("xlsx", "csv", "parquet"):
+            for f in sorted(DATA_DIR.glob(f"*.{ext}")):
+                _primary_source = f
+                break
+            if _primary_source:
+                break
 
 with st.sidebar:
     st.subheader("Data Source", anchor=False)
@@ -72,8 +80,12 @@ with st.sidebar:
     uploaded_files = [f for f in uploaded_files if f.is_file() and f.suffix in (".xlsx", ".csv", ".parquet")]
 
     source_options = {}
-    if _primary_file:
-        source_options[f"📦 Platform Data ({_primary_file.name})"] = str(_primary_file)
+    if _primary_source:
+        if _is_dataset:
+            n_pq = len(list(DATA_DIR.glob("*.parquet")))
+            source_options[f"📦 Parquet Dataset ({n_pq} files)"] = str(_primary_source)
+        else:
+            source_options[f"📦 Platform Data ({_primary_source.name})"] = str(_primary_source)
     for uf in uploaded_files:
         source_options[f"📤 Uploaded: {uf.name}"] = str(uf)
 
@@ -132,11 +144,21 @@ cols      = A.get("columns", {})
 # ─── Header ────────────────────────────────────────────────────────────────────
 st.title("SOC Analytics Dashboard")
 data_name = Path(selected_path).name
-st.caption(
-    f"Analysing **{data_name}** • "
-    f"**{A['total_logs']:,}** events • "
-    "Isolation Forest + Rule-based Engine"
-)
+num_files = A.get("dataset_num_files", 1)
+sample_size = A.get("sample_size", A["total_logs"])
+if num_files > 1:
+    st.caption(
+        f"Analysing **{num_files} Parquet files** • "
+        f"**{A['total_logs']:,}** total events • "
+        f"ML sample: **{sample_size:,}** rows • "
+        "Isolation Forest + Rule-based Engine"
+    )
+else:
+    st.caption(
+        f"Analysing **{data_name}** • "
+        f"**{A['total_logs']:,}** events • "
+        "Isolation Forest + Rule-based Engine"
+    )
 
 # ─── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
@@ -167,24 +189,48 @@ with st.sidebar:
 
 # Apply filters
 df_view = df_scored.copy()
+is_filtered = False
 if sel_host != "All" and cols.get("host") and cols["host"] in df_view.columns:
     df_view = df_view[df_view[cols["host"]] == sel_host]
+    is_filtered = True
 if sel_user != "All" and cols.get("user") and cols["user"] in df_view.columns:
     df_view = df_view[df_view[cols["user"]] == sel_user]
+    is_filtered = True
 if sel_threat:
     df_view = df_view[df_view["threat_level"].isin(sel_threat)]
 
-n_crit  = int((df_view["threat_level"] == "Critical").sum())
-n_high  = int((df_view["threat_level"] == "High Threat").sum())
-n_susp  = int((df_view["threat_level"] == "Suspicious").sum())
-n_norm  = int((df_view["threat_level"] == "Normal").sum())
-n_anom  = int(df_view["is_anomaly"].sum())
+# Scale sample counts to full dataset
+_total_logs = A["total_logs"]
+_sample_size = A.get("sample_size", _total_logs)
+_scale = _total_logs / _sample_size if _sample_size > 0 and _sample_size != _total_logs else 1.0
+
+if not is_filtered:
+    # No host/user filter: use full-dataset numbers from threat_summary
+    ts_df = A.get("threat_summary", pd.DataFrame())
+    if not ts_df.empty:
+        _ts_map = dict(zip(ts_df["threat_level"], ts_df["count"]))
+    else:
+        _ts_map = {}
+    n_total = _total_logs
+    n_crit  = _ts_map.get("Critical", 0)
+    n_high  = _ts_map.get("High Threat", 0)
+    n_susp  = _ts_map.get("Suspicious", 0)
+    n_norm  = _ts_map.get("Normal", 0)
+    n_anom  = A.get("n_anomalies_estimated", A.get("n_anomalies", 0))
+else:
+    # Filtered: scale sample counts proportionally
+    n_total = int(len(df_view) * _scale)
+    n_crit  = int((df_view["threat_level"] == "Critical").sum() * _scale)
+    n_high  = int((df_view["threat_level"] == "High Threat").sum() * _scale)
+    n_susp  = int((df_view["threat_level"] == "Suspicious").sum() * _scale)
+    n_norm  = int((df_view["threat_level"] == "Normal").sum() * _scale)
+    n_anom  = int(df_view["is_anomaly"].sum() * _scale)
 
 # ─── KPI Banner ────────────────────────────────────────────────────────────────
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     with st.container(border=True):
-        st.metric("Total Events", f"{len(df_view):,}", help="in current filter")
+        st.metric("Total Events", f"{n_total:,}", help="Full dataset" if not is_filtered else "Estimated from sample")
 with c2:
     with st.container(border=True):
         st.metric("Critical", f"{n_crit:,}", delta="Immediate action", delta_color="off")
