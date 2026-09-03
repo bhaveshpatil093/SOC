@@ -60,6 +60,5 @@ Thumbs.db
 rules/uploaded/
 data/data.csv
 data/data_small.csv
-data/*.parquet
 data/*.xlsx
 data/uploads/
